@@ -1,35 +1,39 @@
 {
-    "name": "youtube-video-downloader",
-    "version": "1.0.0",
-    "description": "",
-    "main": "index.js",
-    "scripts": {
-        "dev": "tsx watch src/server.ts",
-        "start": "tsx src/server.ts",
-        "build": "tsc",
-        "typecheck": "tsc --noEmit",
-        "test:formats": "node scripts/test-formats.mjs",
-        "deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 deploy",
-        "render:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 status",
-        "render:logs": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 logs",
-        "render:open": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 open",
-        "render:cookies": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 cookies",
-        "render:env": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 env",
-        "vercel:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 vercel"
-    },
-    "keywords": [],
-    "author": "",
-    "license": "ISC",
-    "type": "module",
-    "dependencies": {
-        "express": "^5.2.1",
-        "firebase": "^12.19.0",
-        "jose": "^6.2.12"
-    },
-    "devDependencies": {
-        "@types/express": "^5.0.6",
-        "@types/node": "^26.6.4",
-        "tsx": "^4.23.15",
-        "typescript": "^7.0.2"
-    }
+    "name":  "youtube-video-downloader",
+    "version":  "1.0.0",
+    "description":  "",
+    "main":  "index.js",
+    "scripts":  {
+                    "dev":  "tsx watch src/server.ts",
+                    "start":  "tsx src/server.ts",
+                    "build":  "tsc",
+                    "typecheck":  "tsc --noEmit",
+                    "test:formats":  "node scripts/test-formats.mjs",
+                    "deploy":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 deploy",
+                    "render:status":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 status",
+                    "render:logs":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 logs",
+                    "render:open":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 open",
+                    "render:cookies":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 cookies",
+                    "render:env":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 env",
+                    "vercel:deploy":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 vercel",
+                    "diag:popup":  "node scripts/diag-popup.mjs"
+                },
+    "keywords":  [
+
+                 ],
+    "author":  "",
+    "license":  "ISC",
+    "type":  "module",
+    "dependencies":  {
+                         "express":  "^5.2.1",
+                         "firebase":  "^12.19.0",
+                         "jose":  "^6.2.12"
+                     },
+    "devDependencies":  {
+                            "@types/express":  "^5.0.6",
+                            "@types/node":  "^26.6.4",
+                            "playwright-core":  "^1.63.0",
+                            "tsx":  "^4.23.15",
+                            "typescript":  "^7.0.2"
+                        }
 }

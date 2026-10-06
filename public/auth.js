@@ -10,8 +10,9 @@ export async function initFirebaseAuth(configUrl = "/firebase-config.json") {
   const fb = await import("firebase/auth");
 
   // With FIREBASE_AUTH_PROXY=1 the server proxies /__/auth/* from firebaseapp.com, so the auth helper can run
-  // on this very domain — the fix for redirect sign-in on browsers that block third-party storage.
-  const authDomain = cfg.authProxy ? location.host : cfg.authDomain;
+  // on this very domain — the fix for sign-in on browsers that block third-party storage. The SDK always
+  // loads the helper over https, so this only applies on HTTPS hosts; plain-http localhost keeps the default.
+  const authDomain = cfg.authProxy && location.protocol === "https:" ? location.host : cfg.authDomain;
   const app = initializeApp({ apiKey: cfg.apiKey, authDomain, projectId: cfg.projectId, appId: cfg.appId });
   const auth = fb.getAuth(app);
   auth.useDeviceLanguage();
