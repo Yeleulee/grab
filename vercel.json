@@ -4,5 +4,19 @@
   "installCommand": "",
   "buildCommand": "node scripts/vercel-config.mjs",
   "outputDirectory": "public",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/", "destination": "/landing.html" },
+    { "source": "/vendor/firebase/:path*", "destination": "https://grab-dkfd.onrender.com/vendor/firebase/:path*" }
+  ],
+  "headers": [
+    {
+      "source": "/vendor/firebase/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800, immutable" }]
+    },
+    {
+      "source": "/(.*)\\.(png|css|js)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }]
+    }
+  ]
 }

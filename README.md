@@ -12,6 +12,12 @@ npm install
 npm run dev        # http://127.0.0.1:3000
 ```
 
+| Page | Purpose |
+|---|---|
+| `/` | Landing page (marketing, how it works, quality comparison, FAQ) |
+| `/login` | Dedicated sign-in page — Google + email/password, create account, password reset. Redirects to `/app` when sign-in isn't configured or you're already signed in. Honours `?next=/path`. |
+| `/app` | The downloader. With Firebase enabled, unauthenticated visits are sent to `/login`. |
+
 Binaries live in `bin/` (`yt-dlp.exe`, `ffmpeg.exe`, `ffprobe.exe`). They're git-ignored; if missing, grab them:
 
 - yt-dlp: https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe
@@ -48,12 +54,49 @@ downloads. HLS manifests are excluded. Audio: MP3 is re-encoded at best VBR; M4A
 See [DEPLOY.md](./DEPLOY.md) — local (recommended, `start.cmd`), LAN sharing, Docker on Railway/Fly/VPS with the
 `APP_PASSWORD` gate and `YTDLP_COOKIES_FILE` for bot checks, and why Vercel can't run it.
 
+## Login with Firebase
+
+Sign-in is **off** until the `FIREBASE_*` environment variables are set. Once set, every API call needs a
+Firebase ID token, each user sees only their own downloads, and the UI shows a sign-in screen
+(Google and/or email/password with create-account and password reset).
+
+**Setup (≈5 minutes):**
+
+1. [console.firebase.google.com](https://console.firebase.google.com) → *Add project* (Analytics optional).
+2. *Build → Authentication → Get started*. Under *Sign-in method* enable **Google** and/or **Email/Password**.
+3. *Project settings (gear) → Your apps → Web (`</>`)* → register an app → copy the `firebaseConfig` values.
+4. Copy `.env.example` to `.env` and fill in the `FIREBASE_*` values. Set `FIREBASE_PROVIDERS` to the methods
+   you enabled, e.g. `google` or `google,password`. `.env` is git-ignored (as is every `.env.*` except the
+   empty `.env.example` template), so the keys never reach GitHub. Nothing is hard-coded in the source.
+5. *Authentication → Settings → Authorized domains*: `localhost` is pre-authorised; add every domain the page is
+   served from (here: `grab-blond.vercel.app`).
+6. Restart the server (`npm start`). The log shows `Auth: Firebase (<projectId>)`.
+7. Production: the same variables are set on Render (`npm run render:env -- FIREBASE_API_KEY <value>`, etc.),
+   then `npm run deploy`. The server serves them to the browser at `/firebase-config.json`.
+
+**How it works**
+
+- Client: `public/auth.js` loads the Firebase SDK from `/vendor/firebase` (served from `node_modules` via an
+  import map — no bundler, no CDN; on Vercel a rewrite in `vercel.json` fetches it from Render) and sends `Authorization: Bearer <ID token>`; tokens auto-refresh and a
+  stale one is retried once before re-prompting.
+- Server: `src/auth.ts` verifies tokens with `jose` against Google's public keys
+  (`securetoken@system.gserviceaccount.com`, issuer `https://securetoken.google.com/<projectId>`), so **no
+  service-account key is needed**. Static files and `/api/health` stay public; everything else under `/api` is gated.
+- Jobs carry the owner's `uid`; `/api/jobs*` is filtered per user. `APP_PASSWORD` (if also set) is still
+  accepted for scripts/curl.
+
+The web config is not a secret (Firebase expects it in the browser); access is controlled by the enabled
+providers and authorised domains.
+
 ## Project layout
 
 ```
 src/ytdlp.ts            yt-dlp wrapper: URL validation, metadata, format selector, download w/ multi-part progress, cancel (tree-kill + .part cleanup)
 src/server.ts           Express API + SSE progress + persisted job history + reveal-in-folder
-public/                 UI (vanilla HTML/CSS/JS, dark/light theme)
+src/env.ts              loads .env (git-ignored) into process.env before anything else runs
+src/auth.ts             Firebase config from FIREBASE_* env vars + ID-token verification (jose + Google JWKS, no service account)
+public/                 UI. landing.html/css/js = marketing page · login.html/css/js = sign-in · app.html + app.js + styles.css = the downloader · auth.js = Firebase client
+.env.example            template for .env (Firebase keys); copy and fill in, never commit .env
 scripts/test-formats.mjs  end-to-end format matrix test
 Dockerfile              Container deploy (see Hosting)
 render.yaml             Render Blueprint (free plan, auto-deploy, password)
@@ -81,7 +124,14 @@ vercel.json, .vercelignore Vercel static-frontend config (allowlist upload)
 
 ## Design system
 
-The UI follows the visual language of [inspora.design](https://www.inspora.design/) (measured from their CSS):
+Two registers, one typeface (Inter):
+
+**Landing & login** follow the direction of [awwwards.com](https://www.awwwards.com/): light-grey canvas with near-black ink,
+oversized uppercase display type (tight −0.045em tracking, 0.9 line-height), a small metadata row above the headline, pill
+buttons (black primary / outlined secondary), a huge dark rounded frame showcasing the product (rendered as live HTML, not a
+screenshot), a type marquee, calm white card grids, and a split dark/light sign-in layout. Tokens in `public/landing.css`.
+
+**The app** follows the visual language of [inspora.design](https://www.inspora.design/) (measured from their CSS):
 
 | Principle | How it's applied |
 |---|---|
@@ -123,10 +173,10 @@ Already set up:
 | Backend + API | https://grab-dkfd.onrender.com (Render service `grab`) | Docker: Express + yt-dlp + ffmpeg, from private repo `Yeleulee/grab` (`main`) |
 
 The Vercel page calls the Render API **directly** (CORS via `ALLOWED_ORIGINS`), so long downloads, live progress
-(SSE) and file transfers never pass through Vercel's proxy limits. There is **no password** right now: anyone with
-the link can use it. To require one, run `npm run render:env -- APP_PASSWORD <something>` then `npm run deploy`;
-the page then shows a sign-in form and exchanges the password for a 30-day token (`POST /api/login`), and opening
-the Render URL directly uses the browser's Basic-auth prompt (user `grab`).
+(SSE) and file transfers never pass through Vercel's proxy limits. Sign-in is **Firebase (Google)**: the
+`FIREBASE_*` variables are set on Render, and `grab-blond.vercel.app` must be listed under Firebase →
+Authentication → Settings → Authorized domains. An optional shared password also exists
+(`npm run render:env -- APP_PASSWORD <something>` then `npm run deploy`) for scripts/curl or Basic-auth access.
 
 Day-to-day, from this folder:
 

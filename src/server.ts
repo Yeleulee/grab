@@ -1,3 +1,4 @@
+import "./env.js"; // must stay first: loads .env before other modules read process.env
 import express, { type Request, type Response } from "express";
 import path from "node:path";
 import { mkdirSync, existsSync, readFileSync, writeFileSync, statSync } from "node:fs";
@@ -16,6 +17,7 @@ import {
   type CodecPref,
   type Progress,
 } from "./ytdlp.js";
+import { createFirebaseAuth, loadFirebaseConfig } from "./auth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -34,6 +36,7 @@ mkdirSync(DATA_DIR, { recursive: true });
 
 interface Job {
   id: string;
+  uid?: string;
   url: string;
   title: string;
   thumbnail?: string;
@@ -136,26 +139,60 @@ const validToken = (token: string) => {
 };
 
 if (APP_PASSWORD) {
-  const expectedBasic = `Basic ${Buffer.from(`${APP_USER}:${APP_PASSWORD}`).toString("base64")}`;
-
   app.post("/api/login", (req, res) => {
     const password = String(req.body?.password ?? "");
     if (!safeEqual(password, APP_PASSWORD)) return res.status(401).json({ error: "Wrong password." });
     res.json({ token: issueToken(), expiresInDays: TOKEN_TTL_MS / 86_400_000 });
   });
+}
 
-  app.use((req, res, next) => {
-    if (req.path === "/api/health") return next();
+// Firebase Authentication (FIREBASE_* env vars). When configured, every /api route except
+// health/login needs a Firebase ID token; the password gate (if any) is still accepted for scripts/curl.
+const firebaseCfg = loadFirebaseConfig();
+const firebase = firebaseCfg ? createFirebaseAuth(firebaseCfg.projectId) : null;
+const expectedBasic = APP_PASSWORD ? `Basic ${Buffer.from(`${APP_USER}:${APP_PASSWORD}`).toString("base64")}` : null;
+
+// The browser SDK needs the web config. It's built from env vars at runtime so no keys live in the repo.
+// (Firebase web config is meant to be public; access is enforced by ID-token checks here + Firebase rules.)
+app.get("/firebase-config.json", (_req, res) => {
+  res.set("Cache-Control", "no-store").json(firebaseCfg ?? {});
+});
+
+if (APP_PASSWORD || firebase) {
+  app.use("/api", async (req, res, next) => {
+    if (req.method === "OPTIONS" || req.path === "/health" || req.path === "/login") return next();
     const auth = req.headers.authorization ?? "";
-    if (safeEqual(auth, expectedBasic)) return next();
+    if (expectedBasic && safeEqual(auth, expectedBasic)) return next();
     const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : typeof req.query.token === "string" ? req.query.token : "";
-    if (bearer && validToken(bearer)) return next();
-    // Only challenge browsers loading pages directly; a cross-origin app shows its own login form instead.
-    if (!req.headers.origin && !bearer) res.set("WWW-Authenticate", 'Basic realm="Grab"');
+    if (!bearer) return res.status(401).json({ error: "Sign in required." });
+    if (APP_PASSWORD && validToken(bearer)) return next();
+    if (firebase) {
+      try {
+        req.user = await firebase.verify(bearer);
+        return next();
+      } catch (e: any) {
+        return res.status(401).json({ error: /exp/i.test(String(e.code ?? e.message)) ? "Session expired — sign in again." : "Invalid session." });
+      }
+    }
     res.status(401).json({ error: "Authentication required." });
   });
 }
-app.use(express.static(PUBLIC_DIR));
+// Pages: "/" is the landing page, "/login" the sign-in page, "/app" the downloader.
+// Without Firebase there is nothing to sign in to, so /login just forwards to the app.
+const page = (file: string) => (_req: Request, res: Response) => res.sendFile(path.join(PUBLIC_DIR, file));
+app.get("/", page("landing.html"));
+app.get("/app", page("app.html"));
+app.get("/login", (req, res) => (firebase ? page("login.html")(req, res) : res.redirect(302, "/app")));
+app.use(express.static(PUBLIC_DIR, { index: false }));
+// Serve the Firebase SDK from node_modules so the client needs no bundler or CDN.
+app.use("/vendor/firebase", express.static(path.join(ROOT, "node_modules", "firebase"), { immutable: true, maxAge: "7d" }));
+
+/** A job is visible to its owner; legacy jobs without an owner are visible to everyone. */
+const canSee = (req: Request, j: Job) => !j.uid || !req.user || j.uid === req.user.uid;
+const findJob = (req: Request) => {
+  const j = jobs.get(req.params.id as string);
+  return j && canSee(req, j) ? j : undefined;
+};
 
 // Spawning yt-dlp takes seconds on a small instance; cache the version so health checks stay instant.
 let ytdlpVersion: string | null = null;
@@ -172,7 +209,14 @@ function refreshVersion() {
 app.get("/api/health", (_req, res) => {
   const bins = checkBinaries();
   if (!ytdlpVersion) refreshVersion();
-  res.json({ ok: bins.ytdlp && bins.ffmpeg, binaries: bins, ytdlpVersion, downloadDir: DOWNLOAD_DIR, hosted: HOSTED });
+  res.json({
+    ok: bins.ytdlp && bins.ffmpeg,
+    binaries: bins,
+    ytdlpVersion,
+    downloadDir: DOWNLOAD_DIR,
+    hosted: HOSTED,
+    auth: { firebase: !!firebase, password: !!APP_PASSWORD },
+  });
 });
 
 app.post("/api/info", async (req, res) => {
@@ -200,6 +244,7 @@ app.post("/api/download", (req, res) => {
 
   const job: Job = {
     id: randomUUID(),
+    uid: req.user?.uid,
     url,
     title,
     thumbnail,
@@ -254,18 +299,18 @@ app.post("/api/download", (req, res) => {
   res.status(202).json(publicJob(job));
 });
 
-app.get("/api/jobs", (_req, res) => {
-  res.json([...jobs.values()].sort((a, b) => b.createdAt - a.createdAt).map(publicJob));
+app.get("/api/jobs", (req, res) => {
+  res.json([...jobs.values()].filter((j) => canSee(req, j)).sort((a, b) => b.createdAt - a.createdAt).map(publicJob));
 });
 
-app.delete("/api/jobs/finished", (_req, res) => {
-  for (const [id, j] of jobs) if (j.status !== "running") jobs.delete(id);
+app.delete("/api/jobs/finished", (req, res) => {
+  for (const [id, j] of jobs) if (j.status !== "running" && canSee(req, j)) jobs.delete(id);
   saveHistory();
   res.json({ ok: true });
 });
 
 app.delete("/api/jobs/:id", (req, res) => {
-  const job = jobs.get(req.params.id as string);
+  const job = findJob(req);
   if (!job) return res.status(404).json({ error: "Job not found." });
   if (job.status === "running") return res.status(409).json({ error: "Cancel the download first." });
   jobs.delete(job.id);
@@ -276,7 +321,7 @@ app.delete("/api/jobs/:id", (req, res) => {
 /** Opens Explorer/Finder with the file selected. Only meaningful when the browser is on the same machine. */
 app.post("/api/jobs/:id/reveal", (req, res) => {
   if (HOSTED) return res.status(400).json({ error: "Not available on a hosted server — use Save." });
-  const job = jobs.get(req.params.id as string);
+  const job = findJob(req);
   if (!job?.filePath || !existsSync(job.filePath)) return res.status(404).json({ error: "File not found on disk." });
   const target = path.resolve(job.filePath);
   if (!target.startsWith(DOWNLOAD_DIR)) return res.status(400).json({ error: "Invalid path." });
@@ -294,7 +339,7 @@ app.post("/api/open-folder", (_req, res) => {
 });
 
 app.get("/api/jobs/:id/events", (req: Request, res: Response) => {
-  const job = jobs.get(req.params.id as string);
+  const job = findJob(req);
   if (!job) return res.status(404).end();
 
   res.writeHead(200, {
@@ -310,7 +355,7 @@ app.get("/api/jobs/:id/events", (req: Request, res: Response) => {
 });
 
 app.post("/api/jobs/:id/cancel", (req, res) => {
-  const job = jobs.get(req.params.id as string);
+  const job = findJob(req);
   if (!job) return res.status(404).json({ error: "Job not found." });
   if (job.status !== "running") return res.json(publicJob(job));
   job.status = "cancelled";
@@ -319,7 +364,7 @@ app.post("/api/jobs/:id/cancel", (req, res) => {
 });
 
 app.get("/api/jobs/:id/file", (req, res) => {
-  const job = jobs.get(req.params.id as string);
+  const job = findJob(req);
   if (!job?.filePath || job.status !== "done") return res.status(404).json({ error: "File not ready." });
   const resolved = path.resolve(job.filePath);
   if (!resolved.startsWith(DOWNLOAD_DIR) || !existsSync(resolved))
@@ -341,5 +386,6 @@ app.listen(PORT, HOST, () => {
   const bins = checkBinaries();
   console.log(`\n  YouTube Downloader running at http://${HOST}:${PORT}`);
   console.log(`  yt-dlp: ${bins.ytdlp ? "ok" : "MISSING"}   ffmpeg: ${bins.ffmpeg ? "ok" : "MISSING"}`);
-  console.log(`  Saving to: ${DOWNLOAD_DIR}\n`);
+  console.log(`  Saving to: ${DOWNLOAD_DIR}`);
+  console.log(`  Auth: ${firebase ? `Firebase (${firebaseCfg!.projectId})` : APP_PASSWORD ? "password" : "none (local)"}\n`);
 });

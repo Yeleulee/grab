@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in — Grab</title>
+  <meta name="color-scheme" content="light" />
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <link rel="preconnect" href="https://rsms.me/" />
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <link rel="stylesheet" href="/landing.css" />
+  <link rel="stylesheet" href="/login.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "firebase/app": "/vendor/firebase/firebase-app.js",
+      "firebase/auth": "/vendor/firebase/firebase-auth.js",
+      "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js": "/vendor/firebase/firebase-app.js"
+    }
+  }
+  </script>
+</head>
+<body class="login-page">
+  <aside class="brand-panel">
+    <a class="brand-top" href="/"><img src="/logo.png" alt="" width="32" height="32" /><span>Grab</span></a>
+    <div class="brand-copy">
+      <h1 class="display-login"><span>Save any</span><span>YouTube</span><span>video.</span></h1>
+      <p>Exact resolution. Right codec. Straight to your disk.</p>
+    </div>
+    <ul class="brand-points">
+      <li><b>4K</b> MP4 up to 2160p60, VP9 / AV1 / H.264</li>
+      <li><b>MP3</b> and M4A audio with cover art</li>
+      <li><b>Private</b> — runs on your machine, nothing uploaded</li>
+    </ul>
+  </aside>
+
+  <main class="form-panel">
+    <a class="back" href="/">← Back to site</a>
+    <div class="form-card" id="card">
+      <h2 id="title">Welcome back</h2>
+      <p class="sub" id="subtitle">Sign in to download and see your history.</p>
+
+      <div class="unavailable" id="unavailable" hidden>
+        <p>Sign-in isn't configured on this server.</p>
+        <a class="pill pill-dark" href="/app">Open the app →</a>
+      </div>
+
+      <div id="auth-ui">
+        <button type="button" class="btn google-btn" id="google-btn">
+          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.8 6C12.3 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.1-10 7.1-17.5z"/><path fill="#FBBC05" d="M10.4 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.7-4.1-13.6-9.9l-7.8 6C6.5 42.6 14.6 48 24 48z"/></svg>
+          Continue with Google
+        </button>
+
+        <div class="divider" id="divider"><span>or</span></div>
+
+        <form id="form" class="form" autocomplete="on" novalidate>
+          <label class="fld" id="name-fld" hidden>
+            <span>Name</span>
+            <input id="name" type="text" name="name" autocomplete="name" placeholder="Your name" />
+          </label>
+          <label class="fld">
+            <span>Email</span>
+            <input id="email" type="email" name="email" autocomplete="email" placeholder="you@example.com" required />
+          </label>
+          <label class="fld">
+            <span class="fld-row">Password <button type="button" class="link" id="forgot">Forgot password?</button></span>
+            <input id="password" type="password" name="password" autocomplete="current-password" placeholder="••••••••" required minlength="6" />
+          </label>
+          <p class="msg err" id="error" role="alert" hidden></p>
+          <p class="msg ok" id="okmsg" hidden></p>
+          <button type="submit" class="btn primary" id="submit"><span class="btn-label">Sign in</span></button>
+        </form>
+
+        <p class="switch">
+          <span id="switch-text">New here?</span>
+          <button type="button" class="link strong" id="toggle">Create an account</button>
+        </p>
+      </div>
+
+      <p class="legal">For personal use only. By continuing you agree to respect YouTube's Terms of Service and creators' rights.</p>
+    </div>
+  </main>
+
+  <script src="/config.js"></script>
+  <script type="module" src="/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grab — Save any YouTube video, in the quality you choose</title>
+  <meta name="description" content="Grab downloads YouTube videos as MP4 up to 4K, or audio as MP3 / M4A. Runs on your own machine. No API keys, no ads, no upload." />
+  <meta name="color-scheme" content="light" />
+  <meta property="og:title" content="Grab — YouTube Downloader" />
+  <meta property="og:description" content="Save any YouTube video, in the quality you choose. Local. Private. Free." />
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <link rel="preconnect" href="https://rsms.me/" />
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <link rel="stylesheet" href="/landing.css" />
+</head>
+<body>
+  <header class="nav">
+    <a class="nav-brand" href="/"><img src="/logo.png" alt="" width="32" height="32" /><span>Grab</span></a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#quality">Quality</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="nav-login" id="nav-login" href="/login" hidden>Log in</a>
+      <a class="pill pill-dark" id="nav-cta" href="/app">Open app</a>
+    </div>
+    <button class="nav-burger" id="burger" aria-label="Menu" aria-expanded="false"><span></span><span></span></button>
+  </header>
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <a href="#how">How it works</a><a href="#quality">Quality</a><a href="#privacy">Privacy</a><a href="#faq">FAQ</a>
+    <a href="/login" id="mobile-login" hidden>Log in</a>
+    <a class="pill pill-dark" href="/app">Open app</a>
+  </div>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-meta reveal">
+        <span>YouTube downloader</span>
+        <span class="chip">Up to 4K</span>
+        <span>MP4 · MP3 · M4A</span>
+      </div>
+      <h1 class="display reveal">
+        <span class="line"><span>Save any</span></span>
+        <span class="line"><span>YouTube video.</span></span>
+      </h1>
+      <p class="hero-sub reveal">Pick the exact resolution and codec. Download to your own machine. No API keys, no ads, nothing uploaded anywhere.</p>
+      <div class="hero-actions reveal">
+        <a class="pill pill-dark pill-lg" href="/app">Start downloading <span class="arrow">→</span></a>
+        <a class="pill pill-outline pill-lg" href="#how">See how it works</a>
+      </div>
+    </section>
+
+    <!-- Product frame -->
+    <section class="frame-wrap reveal">
+      <div class="frame">
+        <div class="frame-bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="frame-url">127.0.0.1:3000/app</span>
+        </div>
+        <div class="mock">
+          <div class="mock-top">
+            <div class="mock-brand"><img src="/logo.png" alt="" width="22" height="22" /><b>Grab</b></div>
+            <div class="mock-engine"><i></i>Engine ready</div>
+          </div>
+          <div class="mock-input"><span class="mock-url">https://www.youtube.com/watch?v=aqz-KE-bpKQ</span><span class="mock-btn">Fetch</span></div>
+          <div class="mock-grid">
+            <div class="mock-media">
+              <div class="mock-thumb"><span>BIG BUCK BUNNY</span><em>10:35</em></div>
+              <div class="mock-kv"><span>Channel</span><b>Blender</b></div>
+              <div class="mock-kv"><span>Views</span><b>23,414,066</b></div>
+              <div class="mock-kv"><span>Published</span><b>Nov 10, 2014</b></div>
+            </div>
+            <div class="mock-body">
+              <div class="mock-title">Big Buck Bunny 60fps 4K — Official Blender Foundation Short Film</div>
+              <div class="mock-tabs"><span class="on">Video · MP4</span><span>Audio only</span><span class="mock-pref"><span class="on">Best quality</span><span>Compatibility</span></span></div>
+              <div class="mock-rows" id="mock-rows">
+                <div class="row"><i></i><b>2160p60</b><span>AV1 · 8,982 kbps</span><em>689.2 MB</em></div>
+                <div class="row"><i></i><b>1440p60</b><span>AV1 · 3,940 kbps</span><em>307.9 MB</em></div>
+                <div class="row sel"><i></i><b>1080p60 <u>Recommended</u></b><span>VP9 · 2,127 kbps</span><em>168.7 MB</em></div>
+                <div class="row"><i></i><b>720p60</b><span>VP9 · 1,420 kbps</span><em>112.7 MB</em></div>
+                <div class="row"><i></i><b>480p</b><span>H.264 · 630 kbps</span><em>36.7 MB</em></div>
+              </div>
+              <div class="mock-cta"><span class="mock-btn big">Download 1080p60 MP4</span><span class="mock-note">About 168.7 MB · VP9</span></div>
+              <div class="mock-progress" id="mock-progress">
+                <div class="mock-prow"><span>Big Buck Bunny 60fps 4K — Official Blender…</span><em id="mock-pct">0%</em></div>
+                <div class="mock-bar"><div id="mock-fill"></div></div>
+                <div class="mock-stat" id="mock-stat">Video stream · 28.4 MB/s · 00:06 left</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Marquee -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee-track">
+        <span>4K 2160p</span><span>1440p</span><span>1080p60</span><span>720p</span><span>MP4</span><span>MP3</span><span>M4A</span><span>VP9</span><span>AV1</span><span>H.264</span><span>Shorts</span><span>No API key</span><span>Local</span>
+        <span>4K 2160p</span><span>1440p</span><span>1080p60</span><span>720p</span><span>MP4</span><span>MP3</span><span>M4A</span><span>VP9</span><span>AV1</span><span>H.264</span><span>Shorts</span><span>No API key</span><span>Local</span>
+      </div>
+    </div>
+
+    <!-- How it works -->
+    <section class="section" id="how">
+      <div class="section-head reveal">
+        <span class="eyebrow">How it works</span>
+        <h2>Three steps.<br/>About ten seconds.</h2>
+      </div>
+      <ol class="steps">
+        <li class="step reveal">
+          <span class="step-num">01</span>
+          <h3>Paste a link</h3>
+          <p>Any <code>youtube.com</code>, <code>youtu.be</code>, Shorts or YouTube Music URL. Tracking junk is stripped automatically.</p>
+        </li>
+        <li class="step reveal">
+          <span class="step-num">02</span>
+          <h3>Pick the quality</h3>
+          <p>See every resolution with its real codec, bitrate and file size before you commit. Or switch to audio-only MP3 / M4A.</p>
+        </li>
+        <li class="step reveal">
+          <span class="step-num">03</span>
+          <h3>Download</h3>
+          <p>Live progress with speed and ETA. Video and audio are merged into a clean MP4, saved straight to your disk.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Quality -->
+    <section class="section section-dark" id="quality">
+      <div class="section-head reveal">
+        <span class="eyebrow">Quality, measured</span>
+        <h2>Looks like YouTube.<br/>Because it is.</h2>
+        <p class="lede">Most downloaders grab the lowest-bitrate H.264 stream and call it "720p". Grab weighs every stream by bitrate <em>and</em> codec efficiency and picks the one that actually looks best — usually the same VP9 or AV1 stream YouTube itself plays in your browser.</p>
+      </div>
+      <div class="compare reveal">
+        <div class="compare-col">
+          <span class="compare-label">Typical downloader · 720p</span>
+          <div class="compare-bar"><div style="width:46%"></div></div>
+          <div class="compare-meta"><b>H.264</b><span>187 kbps</span></div>
+        </div>
+        <div class="compare-col highlight">
+          <span class="compare-label">Grab · 720p</span>
+          <div class="compare-bar"><div style="width:100%"></div></div>
+          <div class="compare-meta"><b>VP9</b><span>412 kbps</span></div>
+        </div>
+      </div>
+      <p class="compare-foot reveal">Measured on a real video with <code>ffprobe</code>. Prefer universal playback instead? One toggle switches to H.264 everywhere.</p>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats reveal">
+      <div><b>4K</b><span>Up to 2160p60</span></div>
+      <div><b>10</b><span>formats, every one verified</span></div>
+      <div><b>0</b><span>API keys · ads · uploads</span></div>
+      <div><b>1</b><span>click to cancel, clean</span></div>
+    </section>
+
+    <!-- Privacy -->
+    <section class="section" id="privacy">
+      <div class="features">
+        <div class="feature reveal">
+          <span class="eyebrow">Private</span>
+          <h3>Runs on your machine</h3>
+          <p>The server lives on <code>127.0.0.1</code>. Files go from YouTube to your disk. Nothing passes through a third party — including us.</p>
+        </div>
+        <div class="feature reveal">
+          <span class="eyebrow">Honest</span>
+          <h3>What you see is what you get</h3>
+          <p>Codec, bitrate and size shown per row are the exact stream that downloads. Explicit format IDs, no surprises.</p>
+        </div>
+        <div class="feature reveal">
+          <span class="eyebrow">Durable</span>
+          <h3>Keeps working</h3>
+          <p>Built on <code>yt-dlp</code> and <code>ffmpeg</code>, updated in-app with one click when YouTube changes something.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq">
+      <div class="section-head reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2>Questions.</h2>
+      </div>
+      <div class="faq reveal">
+        <details><summary>Do I need a YouTube API key?</summary><p>No. The YouTube Data API only exposes metadata and can't download anything. Grab uses yt-dlp directly.</p></details>
+        <details><summary>Why does 4K say "AV1 · modern player"?</summary><p>YouTube has no H.264 above 1080p, so 1440p and 4K are AV1 or VP9. They play in Chrome, Edge, VLC, Windows 11 Media Player and modern phones/TVs.</p></details>
+        <details><summary>Can I get just the audio?</summary><p>Yes — MP3 (re-encoded at the best VBR quality with cover art) or M4A (YouTube's original AAC stream, untouched).</p></details>
+        <details><summary>Is this allowed?</summary><p>Downloading is against YouTube's Terms of Service unless the creator permits it. Grab is for personal use — your own content, Creative Commons, lectures, offline listening. Respect creators' rights.</p></details>
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="cta-final reveal">
+      <h2 class="display-sm">Ready when<br/>you are.</h2>
+      <a class="pill pill-dark pill-lg" href="/app">Open Grab <span class="arrow">→</span></a>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="foot-brand"><img src="/logo.png" alt="" width="24" height="24" /><span>Grab</span></div>
+    <span>For personal use. Respect YouTube's Terms of Service and creators' rights.</span>
+    <div class="foot-links"><a href="/app">App</a><a href="/login" id="foot-login" hidden>Log in</a><a href="#how">How it works</a></div>
+  </footer>
+
+  <script src="/config.js"></script>
+  <script src="/landing.js"></script>
+</body>
+</html>

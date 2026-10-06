@@ -405,7 +405,7 @@ h1, h2, h3 { font-weight: 500; letter-spacing: -0.01em; margin: 0; }
   .page { max-width: 1200px; }
 }
 
-/* ---------- sign-in (only when the API is password protected) ---------- */
+/* ---------- sign-in (Firebase, or server password) ---------- */
 .login-overlay {
   position: fixed; inset: 0; z-index: 40;
   display: grid; place-items: center; padding: var(--gutter);
@@ -415,4 +415,22 @@ h1, h2, h3 { font-weight: 500; letter-spacing: -0.01em; margin: 0; }
 .login-card h2 { margin: 0; font-size: 20px; font-weight: 500; }
 .login-card p { margin: 0; color: var(--muted); }
 .login-card .inline-error { margin: 0; }
-.login-card .field { flex: none; }
+.login-card .field { flex: none; height: 44px; }
+.login-card .field input { font-size: 15px; }
+.login-card .btn { height: 44px; width: 100%; }
+.login-brand { display: flex; align-items: center; gap: 12px; }
+.login-brand img { display: block; }
+.login-form { display: flex; flex-direction: column; gap: 10px; }
+.google-btn { gap: 10px; font-weight: 500; border: 1px solid var(--line-strong); background: var(--paper); }
+.google-btn:hover:not(:disabled) { background: var(--surface); }
+.divider { display: flex; align-items: center; gap: 12px; color: var(--muted-2); font-size: 12px; }
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.login-links { display: flex; justify-content: space-between; gap: 12px; }
+.login-ok { margin: 0; padding: 10px 12px; font-size: 13px; color: var(--ok); background: var(--ok-soft); border-left: 2px solid var(--ok); }
+
+/* signed-in user chip in the top bar */
+.user { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); padding-right: 4px; }
+.avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; background: var(--surface-2); display: block; }
+.avatar-initial { display: grid; place-items: center; font-size: 11px; font-weight: 600; color: var(--ink); text-transform: uppercase; }
+.user-name { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) { .user-name { display: none; } }

@@ -1,3 +1,5 @@
+import { initFirebaseAuth } from "/auth.js";
+
 const $ = (sel) => document.querySelector(sel);
 
 let hosted = false; // set from /api/health; true when running on a remote server (e.g. Render)
@@ -62,13 +64,63 @@ const apiUrl = (path) => `${API}${path}`;
 // EventSource and <a href> can't send headers, so they carry the token in the query string.
 const authUrl = (path) => (token ? `${apiUrl(path)}${path.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}` : apiUrl(path));
 
+// Firebase Authentication (when the server has FIREBASE_* env vars). Null = not configured.
+let firebase = null;
+const firebaseReady = initFirebaseAuth(apiUrl("/firebase-config.json"))
+  .then(async (fb) => {
+    firebase = fb;
+    if (!fb) return;
+    await fb.ready;
+    fb.onChange(async (user) => {
+      token = user ? await user.getIdToken() : "";
+      renderUser(user);
+    });
+    if (fb.user) token = await fb.getToken();
+    renderUser(fb.user);
+  })
+  .catch((e) => { console.warn("Firebase auth unavailable:", e); firebase = null; });
+
+function renderUser(user) {
+  const chip = $("#user-chip"), img = $("#user-avatar"), initial = $("#user-initial");
+  chip.hidden = !user;
+  $("#sign-out-btn").hidden = !user;
+  $("#account-row").hidden = !user;
+  if (!user) return;
+  const name = user.displayName || user.email || "Signed in";
+  $("#user-name").textContent = name;
+  $("#account-email").textContent = user.email || name;
+  if (user.photoURL) { img.src = user.photoURL; img.hidden = false; initial.hidden = true; }
+  else { initial.textContent = name.trim()[0] || "?"; initial.hidden = false; img.hidden = true; }
+}
+
+$("#sign-out-btn").addEventListener("click", async () => {
+  await firebase?.signOut();
+  token = "";
+  for (const es of streams.values()) es.close();
+  streams.clear();
+  location.replace("/");
+});
+
 let loginPromise = null;
 function requireLogin() {
   if (loginPromise) return loginPromise;
+  if (firebase) {
+    // Dedicated sign-in page; come back here afterwards. Never resolves — the page is leaving.
+    location.replace(`/login?next=${encodeURIComponent(location.pathname + location.search)}`);
+    loginPromise = new Promise(() => {});
+    return loginPromise;
+  }
+  loginPromise = passwordLogin().finally(() => (loginPromise = null));
+  return loginPromise;
+}
+
+function passwordLogin() {
   const overlay = $("#login"), form = $("#login-form"), input = $("#login-password"), err = $("#login-error"), btn = $("#login-btn");
+  $("#fb-login").hidden = true;
+  form.hidden = false;
   overlay.hidden = false;
   input.focus();
-  loginPromise = new Promise((resolve) => {
+  return new Promise((resolve) => {
     const onSubmit = async (e) => {
       e.preventDefault();
       err.hidden = true;
@@ -86,7 +138,6 @@ function requireLogin() {
         form.removeEventListener("submit", onSubmit);
         overlay.hidden = true;
         input.value = "";
-        loginPromise = null;
         resolve();
       } catch (ex) {
         err.textContent = ex.message === "Failed to fetch" ? "Can't reach the server. It may be waking up — try again in a few seconds." : ex.message;
@@ -98,23 +149,36 @@ function requireLogin() {
     };
     form.addEventListener("submit", onSubmit);
   });
-  return loginPromise;
 }
 
 async function api(path, { method, body } = {}, retried = false) {
+  await firebaseReady;
+  if (firebase) {
+    if (!firebase.user && path !== "/api/health") await requireLogin();
+    if (firebase.user) token = await firebase.getToken(retried); // retried=true forces a refresh after a 401
+  }
   const headers = {};
   if (body) headers["Content-Type"] = "application/json";
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token) headers.Authorization = "Bearer " + token;
   const res = await fetch(apiUrl(path), {
     method: method ?? (body ? "POST" : "GET"),
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (res.status === 401 && !retried) {
-    token = "";
-    localStorage.removeItem(TOKEN_KEY);
-    await requireLogin();
-    return api(path, { method, body }, true);
+  if (res.status === 401) {
+    if (firebase) {
+      // A stale token gets one forced refresh; if the server still rejects it, sign in again.
+      if (!retried && firebase.user) return api(path, { method, body }, true);
+      await firebase.signOut();
+      await requireLogin();
+      return api(path, { method, body }, false);
+    }
+    if (!retried) {
+      token = "";
+      localStorage.removeItem(TOKEN_KEY);
+      await requireLogin();
+      return api(path, { method, body }, true);
+    }
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);

@@ -6,3 +6,5 @@ bin
 .git
 cookies.txt
 *.log
+.env
+.env.*
