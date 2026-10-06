@@ -1,7 +1,7 @@
 # Render Blueprint — New + → Blueprint → pick this repo. Redeploys automatically on every git push.
 services:
   - type: web
-    name: youtube-downloader
+    name: grab
     runtime: docker
     plan: free # sleeps after 15 min idle, wakes automatically on the next visit (~30-60 s)
     dockerfilePath: ./Dockerfile

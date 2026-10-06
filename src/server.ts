@@ -106,15 +106,22 @@ if (process.env.APP_PASSWORD) {
 }
 app.use(express.static(PUBLIC_DIR));
 
-app.get("/api/health", async (_req, res) => {
+// Spawning yt-dlp takes seconds on a small instance; cache the version so health checks stay instant.
+let ytdlpVersion: string | null = null;
+let versionPending = false;
+function refreshVersion() {
+  if (versionPending || !checkBinaries().ytdlp) return;
+  versionPending = true;
+  getVersion()
+    .then((v) => (ytdlpVersion = v))
+    .catch(() => {})
+    .finally(() => (versionPending = false));
+}
+
+app.get("/api/health", (_req, res) => {
   const bins = checkBinaries();
-  let version: string | null = null;
-  if (bins.ytdlp) {
-    try {
-      version = await getVersion();
-    } catch {}
-  }
-  res.json({ ok: bins.ytdlp && bins.ffmpeg, binaries: bins, ytdlpVersion: version, downloadDir: DOWNLOAD_DIR, hosted: HOSTED });
+  if (!ytdlpVersion) refreshVersion();
+  res.json({ ok: bins.ytdlp && bins.ffmpeg, binaries: bins, ytdlpVersion, downloadDir: DOWNLOAD_DIR, hosted: HOSTED });
 });
 
 app.post("/api/info", async (req, res) => {
@@ -272,12 +279,14 @@ app.get("/api/jobs/:id/file", (req, res) => {
 app.post("/api/update-engine", async (_req, res) => {
   try {
     res.json({ output: await updateYtDlp() });
+    refreshVersion();
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
 
 app.listen(PORT, HOST, () => {
+  refreshVersion();
   const bins = checkBinaries();
   console.log(`\n  YouTube Downloader running at http://${HOST}:${PORT}`);
   console.log(`  yt-dlp: ${bins.ytdlp ? "ok" : "MISSING"}   ffmpeg: ${bins.ffmpeg ? "ok" : "MISSING"}`);

@@ -57,6 +57,7 @@ public/                 UI (vanilla HTML/CSS/JS, dark/light theme)
 scripts/test-formats.mjs  end-to-end format matrix test
 Dockerfile              Container deploy (see Hosting)
 render.yaml             Render Blueprint (free plan, auto-deploy, password)
+scripts/render.ps1      npm run deploy / render:status / render:logs / render:open
 ```
 
 ## API
@@ -110,10 +111,22 @@ The intended deployment is **local** (this machine) or packaged as a desktop app
 
 ### Deploy to Render (free)
 
-1. Push this folder to a **private** GitHub repo (`bin/*.exe`, `downloads/`, `data/` and `cookies.txt` are git-ignored).
-2. Render dashboard → **New + → Blueprint** → pick the repo. It reads [`render.yaml`](./render.yaml) and asks for
-   `APP_PASSWORD`. Log in with user `grab` and that password.
-3. Done. Every `git push` redeploys automatically.
+Already set up: service **grab** → https://grab-dkfd.onrender.com, built from the private repo
+`Yeleulee/grab` (`main`). The login is `grab` + the password in `.render-password.txt` (git-ignored, local only).
+
+Day-to-day, from this folder:
+
+```powershell
+npm run deploy                     # commit all changes, push, wait until live, health-check
+npm run deploy -- "fix title bug"  # same, with a commit message
+npm run render:status              # last 5 deploys + health
+npm run render:logs                # stream live logs (Ctrl+C to stop)
+npm run render:open                # open the app
+```
+
+A plain `git push` also redeploys (auto-deploy is on). The scripts live in `scripts/render.ps1` and use the
+[Render CLI](https://render.com/docs/cli) (`render login` once; tokens expire periodically, just log in again).
+`render.yaml` describes the same service as a Blueprint, in case you ever recreate it from the dashboard.
 
 On Render the app runs in **hosted mode** (`RENDER` env var): "Show in folder" / "Open folder" are hidden and
 you use **Save** to download the finished file to your device.

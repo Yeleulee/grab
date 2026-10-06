@@ -8,7 +8,11 @@
                     "start":  "tsx src/server.ts",
                     "build":  "tsc",
                     "typecheck":  "tsc --noEmit",
-                    "test:formats":  "node scripts/test-formats.mjs"
+                    "test:formats":  "node scripts/test-formats.mjs",
+                    "deploy":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 deploy",
+                    "render:status":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 status",
+                    "render:logs":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 logs",
+                    "render:open":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 open"
                 },
     "keywords":  [
 

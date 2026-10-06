@@ -22,10 +22,13 @@ RUN npm ci
 
 COPY src ./src
 COPY public ./public
+# Compile once at build time and drop dev deps: plain `node` uses far less CPU/RAM than tsx on a 512 MB free instance.
+RUN npm run build && npm prune --omit=dev
 
 ENV HOST=0.0.0.0
 ENV PORT=3000
+ENV NODE_ENV=production
 EXPOSE 3000
 
 # Render mounts Secret Files read-only at /etc/secrets; yt-dlp rewrites its cookie jar, so use a writable copy.
-CMD ["sh", "-c", "if [ -f /etc/secrets/cookies.txt ]; then cp /etc/secrets/cookies.txt /tmp/cookies.txt && export YTDLP_COOKIES_FILE=/tmp/cookies.txt; fi; exec npm start"]
+CMD ["sh", "-c", "if [ -f /etc/secrets/cookies.txt ]; then cp /etc/secrets/cookies.txt /tmp/cookies.txt && export YTDLP_COOKIES_FILE=/tmp/cookies.txt; fi; exec node dist/server.js"]
