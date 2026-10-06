@@ -6,7 +6,7 @@
   "outputDirectory": "public",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/", "destination": "/landing.html" },
+    { "source": "/", "destination": "/landing" },
     { "source": "/vendor/firebase/:path*", "destination": "https://grab-dkfd.onrender.com/vendor/firebase/:path*" }
   ],
   "headers": [
