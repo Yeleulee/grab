@@ -88,7 +88,6 @@ h1, h2, h3 { font-weight: 500; letter-spacing: -0.01em; margin: 0; }
 .engine .dot { width: 6px; height: 6px; background: var(--muted-2); }
 .engine.ok .dot { background: var(--ok); }
 .engine.bad .dot { background: var(--danger); }
-@media (max-width: 560px) { .engine-text { display: none; } }
 .tb-btn {
   height: 32px; padding: 0 10px; min-width: 32px;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -146,7 +145,6 @@ h1, h2, h3 { font-weight: 500; letter-spacing: -0.01em; margin: 0; }
 
 /* ---------- url form ---------- */
 .url-form { display: flex; gap: 8px; }
-@media (max-width: 560px) { .url-form { flex-direction: column; } .url-form .btn { width: 100%; } }
 .field {
   flex: 1; display: flex; align-items: center;
   height: 40px; padding: 0 4px 0 12px;
@@ -173,7 +171,6 @@ h1, h2, h3 { font-weight: 500; letter-spacing: -0.01em; margin: 0; }
 
 /* ---------- skeleton ---------- */
 .skeleton, .preview { display: grid; grid-template-columns: 400px 1fr; gap: 40px; align-items: start; }
-@media (max-width: 860px) { .skeleton, .preview { grid-template-columns: 1fr; gap: 24px; } }
 .sk-media, .sk-line, .sk-rows > div {
   background: linear-gradient(90deg, var(--surface) 30%, var(--surface-2) 50%, var(--surface) 70%);
   background-size: 200% 100%; animation: shimmer 1.3s linear infinite;
@@ -257,7 +254,6 @@ h1, h2, h3 { font-weight: 500; letter-spacing: -0.01em; margin: 0; }
   padding: 16px 0; border-bottom: 1px solid var(--line);
   animation: fade .18s var(--ease);
 }
-@media (max-width: 560px) { .job { grid-template-columns: 1fr; } .job-thumb { display: none; } }
 .job-thumb { width: 96px; aspect-ratio: 16/9; object-fit: cover; display: block; background: var(--surface); }
 .job-thumb-ph { display: grid; place-items: center; color: var(--muted-2); }
 .job-body { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -312,4 +308,99 @@ h1, h2, h3 { font-weight: 500; letter-spacing: -0.01em; margin: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* =========================================================
+   Responsive
+   Breakpoints: ≤960 tablet/portrait, ≤640 phone, ≤380 small phone
+   ========================================================= */
+
+/* --- tablet & portrait: preview stacks, two columns become one --- */
+@media (max-width: 960px) {
+  .skeleton, .preview { grid-template-columns: 1fr; gap: 24px; }
+  .preview-media { max-width: 560px; }
+  .page { padding-top: 32px; }
+}
+
+/* --- phone --- */
+@media (max-width: 640px) {
+  :root { --gutter: 16px; }
+  body { font-size: 15px; }
+  .page { padding: 24px var(--gutter) 48px; gap: 22px; }
+  .intro h1 { font-size: 20px; }
+  .intro p { font-size: 14px; }
+
+  /* top bar: drop the engine label, keep the dot; bigger touch targets */
+  .engine-text { display: none; }
+  .engine { padding-right: 4px; }
+  .tb-btn { height: 40px; min-width: 40px; }
+  .menu { width: min(340px, calc(100vw - 2 * var(--gutter))); }
+  .kv { grid-template-columns: 70px 1fr; }
+
+  /* url form stacks; 16px input prevents iOS auto-zoom on focus */
+  .url-form { flex-direction: column; }
+  .field { height: 48px; }
+  .field input { font-size: 16px; }
+  .url-form .btn { width: 100%; height: 48px; }
+
+  .frame { padding: 10px; }
+  .preview-body h2 { font-size: 17px; }
+  .filters-row { gap: 10px; }
+  .filters { width: 100%; }
+  .filter { flex: 1; height: 40px; }
+  .codec-pref { width: 100%; justify-content: space-between; }
+  .codec-pref .seg { flex: 1; height: 34px; }
+
+  /* format rows: two lines — "720p …… 9.7 MB" / "VP9 · 277 kbps" */
+  .fmt {
+    grid-template-columns: 18px 1fr auto;
+    grid-template-rows: auto auto;
+    height: auto; padding: 11px 10px 11px 6px; row-gap: 2px; column-gap: 12px;
+  }
+  .fmt .radio { grid-row: 1 / span 2; }
+  .fmt .fmt-label { grid-column: 2; grid-row: 1; flex-wrap: wrap; gap: 6px 8px; }
+  .fmt .fmt-size { grid-column: 3; grid-row: 1; min-width: 0; }
+  .fmt .fmt-codec { grid-column: 2 / span 2; grid-row: 2; font-size: 12px; }
+
+  .cta-row { flex-direction: column; align-items: stretch; gap: 8px; }
+  .cta-row .btn { width: 100%; height: 48px; }
+  .cta-note { text-align: center; }
+
+  /* downloads: smaller thumb; title gets its own line, badge + actions wrap under it */
+  .job { grid-template-columns: 72px 1fr; gap: 12px; padding: 14px 0; }
+  .job-thumb { width: 72px; }
+  .job-head { flex-wrap: wrap; row-gap: 8px; }
+  .job-title {
+    flex: 1 1 100%; white-space: normal;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35;
+  }
+  .job-actions { margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+  .btn.small { height: 34px; }
+  .job-stats { flex-wrap: wrap; row-gap: 2px; }
+
+  .footer { flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 16px var(--gutter) 20px; }
+
+  .toasts { left: var(--gutter); right: var(--gutter); bottom: var(--gutter); }
+  .toast { min-width: 0; max-width: none; }
+}
+
+/* --- small phone (≤380, e.g. iPhone SE / older Android) --- */
+@media (max-width: 380px) {
+  .wordmark { display: none; }
+  .meta > div { grid-template-columns: 80px 1fr; }
+  .fmt .fmt-label .tag { display: none; }
+  .job { grid-template-columns: 1fr; }
+  .job-thumb { display: none; }
+}
+
+/* --- touch devices: no hover-only affordances, comfortable hit areas --- */
+@media (hover: none) and (pointer: coarse) {
+  .fmt { min-height: 48px; }
+  .btn.small { height: 36px; }
+  .field-btn { height: 36px; }
+}
+
+/* --- very wide screens: cap line length, keep two-column preview balanced --- */
+@media (min-width: 1600px) {
+  .page { max-width: 1200px; }
 }

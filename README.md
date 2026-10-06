@@ -90,6 +90,7 @@ The UI follows the visual language of [inspora.design](https://www.inspora.desig
 | **Media in frames, metadata as key/value rows** | Thumbnail sits in a `surface` frame; Channel / Duration / Views / Published are a hairline-separated definition list (like Inspora's Industries / Colors / Styles). |
 | **Lists, not cards** | Format options are a radio table; downloads are hairline-separated rows with a 2px progress line. |
 | **Purposeful micro-states** | Skeleton while fetching, `Video stream → Audio stream → Merging → Completed` progression, toasts on finish/fail, `prefers-reduced-motion` respected. |
+| **Responsive** | Breakpoints at 960px (preview stacks), 640px (phone: stacked form, two-line format rows, wrapped job rows, full-width CTA, 16px inputs to stop iOS zoom, 40px+ touch targets) and 380px (small phones). Verified overflow-free from 320px to 1920px. |
 
 Tokens live at the top of `public/styles.css`.
 
@@ -122,6 +123,7 @@ npm run deploy -- "fix title bug"  # same, with a commit message
 npm run render:status              # last 5 deploys + health
 npm run render:logs                # stream live logs (Ctrl+C to stop)
 npm run render:open                # open the app
+npm run render:cookies             # upload ./cookies.txt to Render + redeploy (see below)
 ```
 
 A plain `git push` also redeploys (auto-deploy is on). The scripts live in `scripts/render.ps1` and use the
@@ -138,6 +140,11 @@ Free-plan behaviour:
 - The disk is temporary: downloads and history vanish on sleep/redeploy. Save files right after they finish.
 - Bandwidth is limited on the free plan; HD videos use it up quickly.
 
-If YouTube answers "Sign in to confirm you're not a bot": export `cookies.txt` (Netscape format) from a browser
-logged into a **throwaway** Google account, add it in Render → your service → **Environment → Secret Files**
-with the filename `cookies.txt`, and redeploy. The container picks it up from `/etc/secrets/cookies.txt`.
+If YouTube answers "Sign in to confirm you're not a bot" (it will, from Render's datacenter IPs):
+
+1. In a **private/incognito** window, log into a **throwaway** Google account on youtube.com.
+2. Export cookies for youtube.com in Netscape format (e.g. the *Get cookies.txt LOCALLY* extension), save as
+   `cookies.txt` in this folder (git-ignored), then close the private window so the session isn't rotated.
+3. `npm run render:cookies` — uploads it as a Render Secret File, redeploys, and checks YouTube works.
+
+Cookies expire after a while; repeat when the error comes back.
