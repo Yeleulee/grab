@@ -186,7 +186,8 @@ It *can* run in a container (Railway, Fly.io, Render, a VPS) using the included 
 (`HOST=0.0.0.0`). Expect problems though:
 
 1. **YouTube blocks datacenter IPs** aggressively ("Sign in to confirm you're not a bot").
-   Mitigation requires `--cookies` from a logged-in account or a residential proxy.
+   The Docker image bundles a PO token provider (bgutil) that handles this automatically; if YouTube
+   still blocks, add `--cookies` from a logged-in account or a residential proxy (see DEPLOY.md).
 2. **Hosting providers take down public YouTube downloaders** (ToS/DMCA). Keep it private.
 3. Bandwidth: every download transits your server twice.
 
@@ -237,7 +238,8 @@ Free-plan behaviour:
 - The disk is temporary: downloads and history vanish on sleep/redeploy. Save files right after they finish.
 - Bandwidth is limited on the free plan; HD videos use it up quickly.
 
-If YouTube answers "Sign in to confirm you're not a bot" (it will, from Render's datacenter IPs):
+If YouTube answers "Sign in to confirm you're not a bot" even though the built-in PO token provider is running
+(`/api/health` → `potProvider: true`), add cookies on top:
 
 1. In a **private/incognito** window, log into a **throwaway** Google account on youtube.com.
 2. Export cookies for youtube.com in Netscape format (e.g. the *Get cookies.txt LOCALLY* extension), save as

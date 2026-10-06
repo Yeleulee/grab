@@ -225,13 +225,19 @@ function run(args: string[], timeoutMs = 60_000): Promise<string> {
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code === 0) resolve(out);
-      else reject(new Error(humanizeError(err || `yt-dlp exited with code ${code}`)));
+      else {
+        // Surface the raw yt-dlp output in server logs (Render etc.) — the UI only gets the humanized line.
+        console.warn(`[yt-dlp] exit ${code}: ${err.trim().split("\n").filter((l) => l.startsWith("ERROR")).join(" | ") || err.trim().slice(0, 300)}`);
+        reject(new Error(humanizeError(err || `yt-dlp exited with code ${code}`)));
+      }
     });
   });
 }
 
 export function humanizeError(stderr: string): string {
   const s = stderr.toLowerCase();
+  if (s.includes("sign in to confirm you're not a bot") || s.includes("sign in to confirm you’re not a bot"))
+    return "YouTube is asking this server to prove it isn't a bot. Try again in a minute; if it keeps happening, the server needs fresh YouTube cookies (see DEPLOY.md).";
   if (s.includes("private video")) return "This video is private.";
   if (s.includes("video unavailable")) return "This video is unavailable.";
   if (s.includes("sign in to confirm your age") || s.includes("age-restricted"))

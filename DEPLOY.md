@@ -40,7 +40,7 @@ The included `Dockerfile` builds a Linux image with Node, `yt-dlp` and `ffmpeg`.
 
 | Risk | What happens | Mitigation |
 |---|---|---|
-| **YouTube bot-blocks datacenter IPs** | Downloads fail with *"Sign in to confirm you're not a bot"* within hours–days of use | Mount a `cookies.txt` from a logged-in browser and set `YTDLP_COOKIES_FILE` (see below). Use a **throwaway Google account** — it may get banned. Residential proxies are the only robust fix and cost money. |
+| **YouTube bot-blocks datacenter IPs** | Downloads fail with *"Sign in to confirm you're not a bot"* within hours–days of use | The image runs a [PO token provider](https://github.com/Brainicism/bgutil-ytdlp-pot-provider) that solves YouTube's bot challenge automatically. If YouTube still blocks, add a `cookies.txt` from a logged-in browser (see below) using a **throwaway Google account** — it may get banned. Residential proxies are the only robust fix and cost money. |
 | **Hosting providers remove YouTube downloaders** | Railway/Render/Fly act on YouTube's DMCA or their own AUP; your app disappears | Keep it private (set `APP_PASSWORD`), don't advertise it, don't put "YouTube" in the hostname. |
 | **Bandwidth** | Every file goes YouTube → server → you. 1 GB 4K download = 2 GB of transfer on the server | Most free tiers include ~100 GB/mo. Check the plan. |
 | **Disk** | Files pile up in `/app/downloads` | Mount a volume and clear it periodically, or treat "Save" as the delivery mechanism and delete after. |
@@ -53,6 +53,7 @@ The included `Dockerfile` builds a Linux image with Node, `yt-dlp` and `ffmpeg`.
 | `PORT` | Set automatically by most platforms |
 | `APP_PASSWORD` | Turns on HTTP Basic Auth (username `grab`, or set `APP_USER`) |
 | `YTDLP_COOKIES_FILE` | Path to a Netscape-format `cookies.txt` to get past bot checks |
+| `POT_PROVIDER_URL` | Where the PO token provider listens (set in the Dockerfile); `/api/health` reports `potProvider: true` once it's up |
 
 ### Railway
 
@@ -88,6 +89,13 @@ docker run -d --name grab --restart unless-stopped \
 Put Caddy or nginx in front for HTTPS if you want a domain.
 
 ### Getting past "Sign in to confirm you're not a bot"
+
+The Dockerfile already bundles the **bgutil PO token provider** (a small Node server on `127.0.0.1:4416` inside the
+container) plus its yt-dlp plugin. yt-dlp asks it for a proof-of-origin token on every request, which is what
+YouTube uses to tell browsers from bots. `GET /api/health` shows `"potProvider": true` when it's running.
+Nothing to configure.
+
+If YouTube still answers with the bot check, add cookies from a logged-in account on top:
 
 1. In a browser logged into a **throwaway** Google account, install an extension like *Get cookies.txt LOCALLY* and export `cookies.txt` for `youtube.com`.
 2. Mount it into the container, e.g. `-v "$PWD/cookies.txt:/app/cookies.txt:ro"`.

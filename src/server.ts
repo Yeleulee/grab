@@ -243,13 +243,29 @@ function refreshVersion() {
     .finally(() => (versionPending = false));
 }
 
+// PO token provider (bgutil, started by the Dockerfile) — proves to YouTube we're not a bot from a datacenter IP.
+// Polled lazily like the version so health checks stay instant; null = not configured (local dev).
+const POT_PROVIDER_URL = process.env.POT_PROVIDER_URL;
+let potProvider: boolean | null = POT_PROVIDER_URL ? false : null;
+let potPending = false;
+function refreshPotProvider() {
+  if (!POT_PROVIDER_URL || potPending) return;
+  potPending = true;
+  fetch(`${POT_PROVIDER_URL}/ping`, { signal: AbortSignal.timeout(3000) })
+    .then((r) => (potProvider = r.ok))
+    .catch(() => (potProvider = false))
+    .finally(() => (potPending = false));
+}
+
 app.get("/api/health", (_req, res) => {
   const bins = checkBinaries();
   if (!ytdlpVersion) refreshVersion();
+  if (potProvider === false) refreshPotProvider();
   res.json({
     ok: bins.ytdlp && bins.ffmpeg,
     binaries: bins,
     ytdlpVersion,
+    potProvider,
     downloadDir: DOWNLOAD_DIR,
     hosted: HOSTED,
     auth: { firebase: !!firebase, password: !!APP_PASSWORD },
