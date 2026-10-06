@@ -52,12 +52,70 @@ const fmtDate = (yyyymmdd) => {
 };
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-async function api(path, { method, body } = {}) {
-  const res = await fetch(path, {
+/* ---------- API + auth ---------- */
+// Set by config.js: "" when this page is served by the backend itself, the Render URL when hosted on Vercel.
+const API = String(window.GRAB_API || "").replace(/\/$/, "");
+const TOKEN_KEY = "grab-token";
+let token = localStorage.getItem(TOKEN_KEY) || "";
+
+const apiUrl = (path) => `${API}${path}`;
+// EventSource and <a href> can't send headers, so they carry the token in the query string.
+const authUrl = (path) => (token ? `${apiUrl(path)}${path.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}` : apiUrl(path));
+
+let loginPromise = null;
+function requireLogin() {
+  if (loginPromise) return loginPromise;
+  const overlay = $("#login"), form = $("#login-form"), input = $("#login-password"), err = $("#login-error"), btn = $("#login-btn");
+  overlay.hidden = false;
+  input.focus();
+  loginPromise = new Promise((resolve) => {
+    const onSubmit = async (e) => {
+      e.preventDefault();
+      err.hidden = true;
+      setBusy(btn, true, "Signing in");
+      try {
+        const res = await fetch(apiUrl("/api/login"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: input.value }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Sign-in failed (${res.status})`);
+        token = data.token;
+        localStorage.setItem(TOKEN_KEY, token);
+        form.removeEventListener("submit", onSubmit);
+        overlay.hidden = true;
+        input.value = "";
+        loginPromise = null;
+        resolve();
+      } catch (ex) {
+        err.textContent = ex.message === "Failed to fetch" ? "Can't reach the server. It may be waking up — try again in a few seconds." : ex.message;
+        err.hidden = false;
+        input.select();
+      } finally {
+        setBusy(btn, false);
+      }
+    };
+    form.addEventListener("submit", onSubmit);
+  });
+  return loginPromise;
+}
+
+async function api(path, { method, body } = {}, retried = false) {
+  const headers = {};
+  if (body) headers["Content-Type"] = "application/json";
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(apiUrl(path), {
     method: method ?? (body ? "POST" : "GET"),
-    headers: body ? { "Content-Type": "application/json" } : undefined,
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
+  if (res.status === 401 && !retried) {
+    token = "";
+    localStorage.removeItem(TOKEN_KEY);
+    await requireLogin();
+    return api(path, { method, body }, true);
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
   return data;
@@ -306,7 +364,7 @@ function upsert(job) {
 
 function watch(id) {
   if (streams.has(id)) return;
-  const es = new EventSource(`/api/jobs/${id}/events`);
+  const es = new EventSource(authUrl(`/api/jobs/${id}/events`));
   streams.set(id, es);
   es.onmessage = (e) => {
     const job = JSON.parse(e.data);
@@ -348,10 +406,10 @@ function renderJobs() {
           ? `<button class="btn small ghost" data-act="cancel" data-id="${j.id}">Cancel</button>`
           : j.status === "done" && j.fileExists
             ? hosted
-              ? `<a class="btn small secondary" href="/api/jobs/${j.id}/file" title="Download the file to this device">Save</a>
+              ? `<a class="btn small secondary" href="${esc(authUrl(`/api/jobs/${j.id}/file`))}" title="Download the file to this device">Save</a>
                <button class="btn small ghost" data-act="remove" data-id="${j.id}" aria-label="Remove">Remove</button>`
               : `<button class="btn small secondary" data-act="reveal" data-id="${j.id}">Show in folder</button>
-               <a class="btn small ghost" href="/api/jobs/${j.id}/file" title="Save a copy via the browser">Save</a>
+               <a class="btn small ghost" href="${esc(authUrl(`/api/jobs/${j.id}/file`))}" title="Save a copy via the browser">Save</a>
                <button class="btn small ghost" data-act="remove" data-id="${j.id}" aria-label="Remove">Remove</button>`
             : `<button class="btn small ghost" data-act="remove" data-id="${j.id}" aria-label="Remove">Remove</button>`;
       const thumb = j.thumbnail

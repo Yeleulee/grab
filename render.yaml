@@ -12,3 +12,5 @@ services:
         value: grab
       - key: APP_PASSWORD
         sync: false # Render asks for this when you create the Blueprint; never commit it
+      - key: ALLOWED_ORIGINS
+        value: https://grab-blond.vercel.app # the Vercel frontend; comma-separate to add more

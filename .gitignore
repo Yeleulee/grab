@@ -6,3 +6,5 @@ config.json
 data/
 cookies.txt
 .render-password.txt
+.vercel
+.env*

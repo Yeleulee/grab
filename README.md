@@ -57,7 +57,9 @@ public/                 UI (vanilla HTML/CSS/JS, dark/light theme)
 scripts/test-formats.mjs  end-to-end format matrix test
 Dockerfile              Container deploy (see Hosting)
 render.yaml             Render Blueprint (free plan, auto-deploy, password)
-scripts/render.ps1      npm run deploy / render:status / render:logs / render:open
+scripts/render.ps1      npm run deploy / vercel:deploy / render:status / render:logs / render:env / render:cookies
+scripts/vercel-config.mjs  Vercel build step: writes public/config.js with the Render API URL
+vercel.json, .vercelignore Vercel static-frontend config (allowlist upload)
 ```
 
 ## API
@@ -98,7 +100,8 @@ Tokens live at the top of `public/styles.css`.
 
 **This cannot run on Vercel** (or Netlify, Cloudflare Workers, or any serverless platform):
 long-running child processes, 120 MB+ native binaries, writable disk, and persistent SSE streams are
-all outside the serverless model. Only the static frontend could live there.
+all outside the serverless model. Only the static frontend can live there — which is exactly how it's deployed
+below (Vercel serves the page, Render runs the engine).
 
 It *can* run in a container (Railway, Fly.io, Render, a VPS) using the included `Dockerfile`
 (`HOST=0.0.0.0`). Expect problems though:
@@ -110,25 +113,39 @@ It *can* run in a container (Railway, Fly.io, Render, a VPS) using the included 
 
 The intended deployment is **local** (this machine) or packaged as a desktop app (Tauri/Electron).
 
-### Deploy to Render (free)
+### Deploy: Vercel (frontend) + Render (backend)
 
-Already set up: service **grab** → https://grab-dkfd.onrender.com, built from the private repo
-`Yeleulee/grab` (`main`). The login is `grab` + the password in `.render-password.txt` (git-ignored, local only).
+Already set up:
+
+| Part | Where | What |
+|---|---|---|
+| Frontend | https://grab-blond.vercel.app (Vercel project `grab`) | static `public/`; `config.js` is generated at build time with the Render URL |
+| Backend + API | https://grab-dkfd.onrender.com (Render service `grab`) | Docker: Express + yt-dlp + ffmpeg, from private repo `Yeleulee/grab` (`main`) |
+
+The Vercel page calls the Render API **directly** (CORS via `ALLOWED_ORIGINS`), so long downloads, live progress
+(SSE) and file transfers never pass through Vercel's proxy limits. Sign in with the password in
+`.render-password.txt` (git-ignored, local only); the page exchanges it for a 30-day token (`POST /api/login`).
+Opening the Render URL directly still works with the browser's Basic-auth prompt (user `grab`).
 
 Day-to-day, from this folder:
 
 ```powershell
-npm run deploy                     # commit all changes, push, wait until live, health-check
+npm run deploy                     # commit, push, wait until Render is live, then deploy Vercel
 npm run deploy -- "fix title bug"  # same, with a commit message
-npm run render:status              # last 5 deploys + health
-npm run render:logs                # stream live logs (Ctrl+C to stop)
-npm run render:open                # open the app
+npm run vercel:deploy              # frontend only
+npm run render:status              # last 5 Render deploys + health
+npm run render:logs                # stream live backend logs (Ctrl+C to stop)
+npm run render:open                # open the app (Vercel URL)
+npm run render:env -- KEY VALUE    # set a Render env var (applies on next deploy)
 npm run render:cookies             # upload ./cookies.txt to Render + redeploy (see below)
 ```
 
-A plain `git push` also redeploys (auto-deploy is on). The scripts live in `scripts/render.ps1` and use the
-[Render CLI](https://render.com/docs/cli) (`render login` once; tokens expire periodically, just log in again).
-`render.yaml` describes the same service as a Blueprint, in case you ever recreate it from the dashboard.
+A plain `git push` also redeploys Render (auto-deploy is on), but not Vercel. The scripts live in
+`scripts/render.ps1` and use the [Render CLI](https://render.com/docs/cli) and [Vercel CLI](https://vercel.com/docs/cli)
+(`render login` / `vercel login` once; if a token expires, just log in again).
+`render.yaml` describes the Render service as a Blueprint; `vercel.json` + `.vercelignore` (an allowlist: only
+`public/` and `scripts/` are uploaded) describe the Vercel side. Adding another frontend domain? Run
+`npm run render:env -- ALLOWED_ORIGINS "https://a.vercel.app,https://b.com"` then `npm run deploy`.
 
 On Render the app runs in **hosted mode** (`RENDER` env var): "Show in folder" / "Open folder" are hidden and
 you use **Save** to download the finished file to your device.

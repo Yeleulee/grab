@@ -1,0 +1,5 @@
+# Allowlist: Vercel only hosts the static frontend. Never upload node_modules, binaries, or secrets.
+/*
+!public
+!scripts
+!vercel.json

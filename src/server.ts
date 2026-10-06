@@ -2,7 +2,7 @@ import express, { type Request, type Response } from "express";
 import path from "node:path";
 import { mkdirSync, existsSync, readFileSync, writeFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHmac, timingSafeEqual } from "node:crypto";
 import { spawn } from "node:child_process";
 import {
   checkBinaries,
@@ -95,13 +95,64 @@ loadHistory();
 const app = express();
 app.use(express.json());
 
+// Origins of separately hosted frontends (e.g. https://grab-xyz.vercel.app) that may call this API.
+const ALLOWED_ORIGINS = new Set(
+  (process.env.ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim().replace(/\/$/, "")).filter(Boolean),
+);
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.set({
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Authorization, Content-Type",
+      "Access-Control-Max-Age": "600",
+      Vary: "Origin",
+    });
+    if (req.method === "OPTIONS") return res.sendStatus(204);
+  }
+  next();
+});
+
 // Optional password gate for shared/public deployments (set APP_PASSWORD). Local use stays open.
-if (process.env.APP_PASSWORD) {
-  const expected = Buffer.from(`${process.env.APP_USER ?? "grab"}:${process.env.APP_PASSWORD}`).toString("base64");
+// Same-origin browsers use HTTP Basic auth; a cross-origin frontend can't, so it trades the password for a
+// signed, expiring token (POST /api/login) and sends it as a Bearer header or ?token= (EventSource, file links).
+const APP_USER = process.env.APP_USER ?? "grab";
+const APP_PASSWORD = process.env.APP_PASSWORD;
+const TOKEN_TTL_MS = 30 * 24 * 3600 * 1000;
+
+const sign = (payload: string) => createHmac("sha256", APP_PASSWORD!).update(`grab-token:${payload}`).digest("base64url");
+const safeEqual = (a: string, b: string) => {
+  const x = Buffer.from(a), y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+};
+const issueToken = () => {
+  const exp = String(Date.now() + TOKEN_TTL_MS);
+  return `${exp}.${sign(exp)}`;
+};
+const validToken = (token: string) => {
+  const [exp, sig] = token.split(".");
+  return !!exp && !!sig && Number(exp) > Date.now() && safeEqual(sig, sign(exp));
+};
+
+if (APP_PASSWORD) {
+  const expectedBasic = `Basic ${Buffer.from(`${APP_USER}:${APP_PASSWORD}`).toString("base64")}`;
+
+  app.post("/api/login", (req, res) => {
+    const password = String(req.body?.password ?? "");
+    if (!safeEqual(password, APP_PASSWORD)) return res.status(401).json({ error: "Wrong password." });
+    res.json({ token: issueToken(), expiresInDays: TOKEN_TTL_MS / 86_400_000 });
+  });
+
   app.use((req, res, next) => {
     if (req.path === "/api/health") return next();
-    if (req.headers.authorization === `Basic ${expected}`) return next();
-    res.set("WWW-Authenticate", 'Basic realm="Grab"').status(401).send("Authentication required.");
+    const auth = req.headers.authorization ?? "";
+    if (safeEqual(auth, expectedBasic)) return next();
+    const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : typeof req.query.token === "string" ? req.query.token : "";
+    if (bearer && validToken(bearer)) return next();
+    // Only challenge browsers loading pages directly; a cross-origin app shows its own login form instead.
+    if (!req.headers.origin && !bearer) res.set("WWW-Authenticate", 'Basic realm="Grab"');
+    res.status(401).json({ error: "Authentication required." });
   });
 }
 app.use(express.static(PUBLIC_DIR));

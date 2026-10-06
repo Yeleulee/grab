@@ -13,7 +13,9 @@
                     "render:status":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 status",
                     "render:logs":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 logs",
                     "render:open":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 open",
-                    "render:cookies":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 cookies"
+                    "render:cookies":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 cookies",
+                    "render:env":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 env",
+                    "vercel:deploy":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 vercel"
                 },
     "keywords":  [
 

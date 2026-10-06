@@ -404,3 +404,15 @@ h1, h2, h3 { font-weight: 500; letter-spacing: -0.01em; margin: 0; }
 @media (min-width: 1600px) {
   .page { max-width: 1200px; }
 }
+
+/* ---------- sign-in (only when the API is password protected) ---------- */
+.login-overlay {
+  position: fixed; inset: 0; z-index: 40;
+  display: grid; place-items: center; padding: var(--gutter);
+  background: var(--paper);
+}
+.login-card { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; }
+.login-card h2 { margin: 0; font-size: 20px; font-weight: 500; }
+.login-card p { margin: 0; color: var(--muted); }
+.login-card .inline-error { margin: 0; }
+.login-card .field { flex: none; }

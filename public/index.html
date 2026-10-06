@@ -114,6 +114,21 @@
   </footer>
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="login-overlay" id="login" hidden>
+    <form class="login-card" id="login-form" autocomplete="on">
+      <h2>Sign in to Grab</h2>
+      <p>This server is password protected.</p>
+      <input type="text" name="username" autocomplete="username" value="grab" hidden />
+      <div class="field">
+        <input id="login-password" type="password" name="password" placeholder="Password" autocomplete="current-password" required aria-label="Password" />
+      </div>
+      <p class="inline-error" id="login-error" role="alert" hidden></p>
+      <button type="submit" class="btn primary" id="login-btn"><span class="btn-label">Sign in</span></button>
+    </form>
+  </div>
+
+  <script src="/config.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
