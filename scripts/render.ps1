@@ -16,7 +16,7 @@ $Rest = $args
 $ErrorActionPreference = "Stop"
 $ServiceId = "srv-db2hopmi0phs73eo57cg"
 $AppUrl = "https://grab-dkfd.onrender.com"
-$WebUrl = "https://grab-blond.vercel.app"
+$WebUrl = "https://grabb-xi.vercel.app"
 
 # Pick up CLIs installed after this terminal was opened (winget/npm -g update PATH only for new shells).
 $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User") + ";$env:APPDATA\npm"

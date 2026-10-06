@@ -9,7 +9,10 @@ export async function initFirebaseAuth(configUrl = "/firebase-config.json") {
   const { initializeApp } = await import("firebase/app");
   const fb = await import("firebase/auth");
 
-  const app = initializeApp({ apiKey: cfg.apiKey, authDomain: cfg.authDomain, projectId: cfg.projectId, appId: cfg.appId });
+  // With FIREBASE_AUTH_PROXY=1 the server proxies /__/auth/* from firebaseapp.com, so the auth helper can run
+  // on this very domain — the fix for redirect sign-in on browsers that block third-party storage.
+  const authDomain = cfg.authProxy ? location.host : cfg.authDomain;
+  const app = initializeApp({ apiKey: cfg.apiKey, authDomain, projectId: cfg.projectId, appId: cfg.appId });
   const auth = fb.getAuth(app);
   auth.useDeviceLanguage();
   await fb.setPersistence(auth, fb.browserLocalPersistence).catch(() => {});
@@ -21,7 +24,12 @@ export async function initFirebaseAuth(configUrl = "/firebase-config.json") {
     const off = fb.onAuthStateChanged(auth, (u) => { off(); resolve(u); });
   });
 
-  const friendly = (e) => {
+  // If we're returning from a redirect sign-in, surface its outcome (success or a real error) instead of
+  // silently landing back on the login page signed out.
+  const redirectResult = fb.getRedirectResult(auth).then((r) => ({ user: r?.user ?? null, error: null }), (e) => ({ user: null, error: friendly(e) }));
+
+  const host = location.hostname;
+  function friendly(e) {
     const code = e?.code || "";
     const map = {
       "auth/invalid-email": "That email address doesn't look right.",
@@ -31,43 +39,43 @@ export async function initFirebaseAuth(configUrl = "/firebase-config.json") {
       "auth/email-already-in-use": "An account with that email already exists — sign in instead.",
       "auth/weak-password": "Use at least 6 characters.",
       "auth/too-many-requests": "Too many attempts. Try again in a few minutes.",
-      "auth/popup-closed-by-user": "Sign-in window was closed.",
-      "auth/popup-blocked": "Your browser blocked the sign-in popup — allow popups and try again.",
-      "auth/unauthorized-domain": "This domain isn't authorised in Firebase → Authentication → Settings → Authorized domains.",
-      "auth/operation-not-allowed": "This sign-in method is disabled in the Firebase console.",
+      "auth/popup-closed-by-user": "The sign-in window was closed before finishing.",
+      "auth/cancelled-popup-request": "Another sign-in window is already open.",
+      "auth/popup-blocked": "Your browser blocked the sign-in window. Allow pop-ups for this site, or use the redirect option below.",
+      "auth/unauthorized-domain": `“${host}” isn't an authorised domain yet. In the Firebase console open Authentication → Settings → Authorized domains and add “${host}”.`,
+      "auth/operation-not-allowed": "This sign-in method is disabled in the Firebase console (Authentication → Sign-in method).",
       "auth/network-request-failed": "Network error — check your connection.",
       "auth/configuration-not-found": "Firebase Authentication isn't enabled for this project — open the Firebase console → Authentication → Get started.",
       "auth/invalid-api-key": "The Firebase API key (FIREBASE_API_KEY) is invalid.",
       "auth/api-key-not-valid.-please-pass-a-valid-api-key.": "The Firebase API key (FIREBASE_API_KEY) is invalid.",
+      "auth/missing-or-invalid-nonce": "Sign-in state was lost during the redirect (browser blocked third-party storage). Use the pop-up option instead.",
+      "auth/web-storage-unsupported": "Your browser blocks the storage Firebase needs. Allow cookies for this site or use a different browser.",
     };
-    if (map[code]) return map[code];
-    if (code.startsWith("auth/")) {
-      // "auth/some-error-code" → "Some error code."
-      const text = code.slice(5).replace(/[-.]+/g, " ").trim();
-      return text ? text[0].toUpperCase() + text.slice(1) + "." : "Sign-in failed.";
-    }
-    return e?.message?.replace(/^Firebase:\s*/, "").replace(/\s*\(auth\/[^)]+\)\.?$/, "") || "Sign-in failed.";
-  };
+    const msg = map[code]
+      || (code.startsWith("auth/") ? (() => { const t = code.slice(5).replace(/[-.]+/g, " ").trim(); return t ? t[0].toUpperCase() + t.slice(1) + "." : "Sign-in failed."; })() : null)
+      || e?.message?.replace(/^Firebase:\s*/, "").replace(/\s*\(auth\/[^)]+\)\.?$/, "")
+      || "Sign-in failed.";
+    const err = new Error(msg);
+    err.code = code;
+    return err;
+  }
 
-  const wrap = (fn) => async (...a) => { try { return await fn(...a); } catch (e) { throw new Error(friendly(e)); } };
+  const wrap = (fn) => async (...a) => { try { return await fn(...a); } catch (e) { throw friendly(e); } };
+  const googleProvider = () => { const p = new fb.GoogleAuthProvider(); p.setCustomParameters({ prompt: "select_account" }); return p; };
 
   return {
     providers,
     ready,
+    redirectResult,
     get user() { return auth.currentUser; },
     onChange: (cb) => fb.onAuthStateChanged(auth, cb),
     /** Fresh ID token (SDK caches and auto-refreshes). force=true after a 401. */
     getToken: (force = false) => (auth.currentUser ? auth.currentUser.getIdToken(force) : Promise.resolve("")),
-    signInGoogle: wrap(async () => {
-      const p = new fb.GoogleAuthProvider();
-      p.setCustomParameters({ prompt: "select_account" });
-      try {
-        return await fb.signInWithPopup(auth, p);
-      } catch (e) {
-        if (e?.code === "auth/popup-blocked") return fb.signInWithRedirect(auth, p);
-        throw e;
-      }
-    }),
+    /** Pop-up sign-in. Never falls back to a redirect on its own: redirects break on browsers that block
+     *  third-party storage unless the auth helper is proxied through this domain (see README). */
+    signInGoogle: wrap(() => fb.signInWithPopup(auth, googleProvider())),
+    /** Explicit redirect sign-in, offered only when the user asks for it after a blocked pop-up. */
+    signInGoogleRedirect: wrap(() => fb.signInWithRedirect(auth, googleProvider())),
     signInEmail: wrap((email, password) => fb.signInWithEmailAndPassword(auth, email, password)),
     signUpEmail: wrap(async (email, password, name) => {
       const cred = await fb.createUserWithEmailAndPassword(auth, email, password);

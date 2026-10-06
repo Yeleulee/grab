@@ -69,7 +69,7 @@ Firebase ID token, each user sees only their own downloads, and the UI shows a s
    you enabled, e.g. `google` or `google,password`. `.env` is git-ignored (as is every `.env.*` except the
    empty `.env.example` template), so the keys never reach GitHub. Nothing is hard-coded in the source.
 5. *Authentication → Settings → Authorized domains*: `localhost` is pre-authorised; add every domain the page is
-   served from (here: `grab-blond.vercel.app`).
+   served from (here: `grabb-xi.vercel.app`).
 6. Restart the server (`npm start`). The log shows `Auth: Firebase (<projectId>)`.
 7. Production: the same variables are set on Render (`npm run render:env -- FIREBASE_API_KEY <value>`, etc.),
    then `npm run deploy`. The server serves them to the browser at `/firebase-config.json`.
@@ -86,7 +86,31 @@ Firebase ID token, each user sees only their own downloads, and the UI shows a s
   accepted for scripts/curl.
 
 The web config is not a secret (Firebase expects it in the browser); access is controlled by the enabled
-providers and authorised domains.
+providers and authorised domains. Seeing `apiKey=…` in the sign-in URL is normal.
+
+**Troubleshooting sign-in**
+
+| Symptom | Cause → fix |
+|---|---|
+| *“127.0.0.1” isn't an authorised domain* | Firebase only pre-authorises `localhost`. The server now redirects `127.0.0.1` → `localhost`; use `http://localhost:3000`. |
+| *“grabb-xi.vercel.app” isn't an authorised domain* | Add that exact host under Authentication → Settings → Authorized domains. |
+| *Your browser blocked the sign-in window* | Allow pop-ups for the site and click again, or use the **redirect** button that appears. |
+| Redirect sign-in comes back signed out | Chrome/Safari/Firefox block the third-party storage the redirect flow needs ([Firebase docs](https://firebase.google.com/docs/auth/web/redirect-best-practices)). Pop-up is the default for this reason. To make redirect work too, enable the auth proxy below. |
+| Nothing happens, no message | Hard-refresh (`Ctrl+F5`) — an old `login.js` kept errors inside the hidden email form. |
+
+**Optional: first-party auth proxy (makes redirect sign-in reliable)**
+
+The server (and a Vercel rewrite) can serve Firebase's sign-in helper from your own domain
+(`/__/auth/*` → `<project>.firebaseapp.com/__/auth/*`), which is Firebase's recommended fix. One-time setup:
+
+1. Google Cloud Console → *APIs & Services → Credentials* → open the OAuth 2.0 client named
+   **“Web client (auto created by Google Service)”**.
+2. Under *Authorized redirect URIs* add `https://grabb-xi.vercel.app/__/auth/handler` and
+   `http://localhost:3000/__/auth/handler`. Under *Authorized JavaScript origins* add the two origins.
+3. Set `FIREBASE_AUTH_PROXY=1` (in `.env` locally, `npm run render:env -- FIREBASE_AUTH_PROXY 1` on Render)
+   and redeploy. The client then uses the page's own host as `authDomain`.
+
+Without step 2, Google rejects the sign-in with `redirect_uri_mismatch`, so leave the flag at `0` until it's done.
 
 ## Project layout
 
@@ -169,12 +193,12 @@ Already set up:
 
 | Part | Where | What |
 |---|---|---|
-| Frontend | https://grab-blond.vercel.app (Vercel project `grab`) | static `public/`; `config.js` is generated at build time with the Render URL |
+| Frontend | https://grabb-xi.vercel.app (Vercel project `grab`) | static `public/`; `config.js` is generated at build time with the Render URL |
 | Backend + API | https://grab-dkfd.onrender.com (Render service `grab`) | Docker: Express + yt-dlp + ffmpeg, from private repo `Yeleulee/grab` (`main`) |
 
 The Vercel page calls the Render API **directly** (CORS via `ALLOWED_ORIGINS`), so long downloads, live progress
 (SSE) and file transfers never pass through Vercel's proxy limits. Sign-in is **Firebase (Google)**: the
-`FIREBASE_*` variables are set on Render, and `grab-blond.vercel.app` must be listed under Firebase →
+`FIREBASE_*` variables are set on Render, and `grabb-xi.vercel.app` must be listed under Firebase →
 Authentication → Settings → Authorized domains. An optional shared password also exists
 (`npm run render:env -- APP_PASSWORD <something>` then `npm run deploy`) for scripts/curl or Basic-auth access.
 

@@ -154,9 +154,40 @@ const expectedBasic = APP_PASSWORD ? `Basic ${Buffer.from(`${APP_USER}:${APP_PAS
 
 // The browser SDK needs the web config. It's built from env vars at runtime so no keys live in the repo.
 // (Firebase web config is meant to be public; access is enforced by ID-token checks here + Firebase rules.)
+const AUTH_PROXY = process.env.FIREBASE_AUTH_PROXY === "1";
 app.get("/firebase-config.json", (_req, res) => {
-  res.set("Cache-Control", "no-store").json(firebaseCfg ?? {});
+  res.set("Cache-Control", "no-store").json(firebaseCfg ? { ...firebaseCfg, authProxy: AUTH_PROXY } : {});
 });
+
+// Reverse-proxy Firebase's sign-in helper pages so the auth flow stays first-party on this domain
+// (https://firebase.google.com/docs/auth/web/redirect-best-practices, option 3). This is what makes
+// redirect sign-in survive browsers that block third-party storage. The client switches authDomain to
+// this host only when FIREBASE_AUTH_PROXY=1 — see README for the one-time Google Cloud step.
+if (firebaseCfg) {
+  const origin = `https://${firebaseCfg.projectId}.firebaseapp.com`;
+  app.use("/__/auth", express.raw({ type: "*/*", limit: "2mb" }), async (req, res) => {
+    try {
+      const headers: Record<string, string> = {};
+      for (const h of ["accept", "accept-language", "content-type", "user-agent", "referer", "cookie"]) {
+        const v = req.headers[h];
+        if (typeof v === "string") headers[h] = v;
+      }
+      const upstream = await fetch(origin + req.originalUrl, {
+        method: req.method,
+        headers,
+        body: ["GET", "HEAD"].includes(req.method) ? undefined : new Uint8Array(req.body as Buffer),
+        redirect: "manual",
+      });
+      res.status(upstream.status);
+      upstream.headers.forEach((v, k) => {
+        if (!["content-encoding", "content-length", "transfer-encoding", "connection"].includes(k)) res.setHeader(k, v);
+      });
+      res.send(Buffer.from(await upstream.arrayBuffer()));
+    } catch (e: any) {
+      res.status(502).send(`Auth helper unavailable: ${e.message}`);
+    }
+  });
+}
 
 if (APP_PASSWORD || firebase) {
   app.use("/api", async (req, res, next) => {
@@ -180,6 +211,12 @@ if (APP_PASSWORD || firebase) {
 // Pages: "/" is the landing page, "/login" the sign-in page, "/app" the downloader.
 // Without Firebase there is nothing to sign in to, so /login just forwards to the app.
 const page = (file: string) => (_req: Request, res: Response) => res.sendFile(path.join(PUBLIC_DIR, file));
+// Firebase pre-authorises "localhost" but not "127.0.0.1"; keep local visitors on the host that works.
+app.use((req, res, next) => {
+  if (firebase && req.hostname === "127.0.0.1" && req.method === "GET" && !req.path.startsWith("/api/"))
+    return res.redirect(302, `http://localhost:${PORT}${req.originalUrl}`);
+  next();
+});
 app.get("/", page("landing.html"));
 app.get("/app", page("app.html"));
 app.get("/login", (req, res) => (firebase ? page("login.html")(req, res) : res.redirect(302, "/app")));
@@ -384,7 +421,7 @@ app.post("/api/update-engine", async (_req, res) => {
 app.listen(PORT, HOST, () => {
   refreshVersion();
   const bins = checkBinaries();
-  console.log(`\n  YouTube Downloader running at http://${HOST}:${PORT}`);
+  console.log(`\n  YouTube Downloader running at http://${HOST === "127.0.0.1" ? "localhost" : HOST}:${PORT}`);
   console.log(`  yt-dlp: ${bins.ytdlp ? "ok" : "MISSING"}   ffmpeg: ${bins.ffmpeg ? "ok" : "MISSING"}`);
   console.log(`  Saving to: ${DOWNLOAD_DIR}`);
   console.log(`  Auth: ${firebase ? `Firebase (${firebaseCfg!.projectId})` : APP_PASSWORD ? "password" : "none (local)"}\n`);

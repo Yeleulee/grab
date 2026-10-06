@@ -7,6 +7,7 @@
   "cleanUrls": true,
   "rewrites": [
     { "source": "/", "destination": "/landing" },
+    { "source": "/__/auth/:path*", "destination": "https://grab-8ce58.firebaseapp.com/__/auth/:path*" },
     { "source": "/vendor/firebase/:path*", "destination": "https://grab-dkfd.onrender.com/vendor/firebase/:path*" }
   ],
   "headers": [

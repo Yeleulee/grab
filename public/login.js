@@ -50,8 +50,10 @@ if (!firebase) {
   els.title.textContent = "No sign-in needed";
   els.subtitle.textContent = "This server runs without accounts.";
 } else {
+  // Returning from a redirect sign-in? Finish it (or show why it failed) before anything else.
+  const redirect = await firebase.redirectResult;
   await firebase.ready;
-  if (firebase.user) location.replace(next);
+  if (firebase.user || redirect.user) { await firebase.getToken(); location.replace(next); }
 
   const hasGoogle = firebase.providers.includes("google"), hasPassword = firebase.providers.includes("password");
   els.google.hidden = !hasGoogle;
@@ -59,18 +61,29 @@ if (!firebase) {
   els.form.hidden = !hasPassword;
   $(".switch").hidden = !hasPassword;
   setMode(mode);
-  if (hasPassword) (mode === "signup" ? els.name : els.email).focus();
+  if (redirect.error) show(els.error, redirect.error);
+  if (hasPassword && !redirect.error) (mode === "signup" ? els.name : els.email).focus();
 
   const complete = async () => {
     await firebase.getToken(); // make sure the token is minted before the app asks for it
     location.replace(next);
   };
 
+  // Pop-up first. If the browser blocks it, explain and offer a redirect as an explicit second choice.
+  const redirectBtn = $("#redirect-btn");
   els.google.addEventListener("click", async () => {
-    clear(); busy(els.google, true);
+    clear(); redirectBtn.hidden = true; busy(els.google, true);
     try { await firebase.signInGoogle(); await complete(); }
-    catch (e) { show(els.error, e.message); }
+    catch (e) {
+      show(els.error, e.message);
+      if (e.code === "auth/popup-blocked") redirectBtn.hidden = false;
+    }
     finally { busy(els.google, false); }
+  });
+  redirectBtn.addEventListener("click", async () => {
+    clear(); busy(redirectBtn, true, "Redirecting");
+    try { await firebase.signInGoogleRedirect(); }
+    catch (e) { show(els.error, e.message); busy(redirectBtn, false); }
   });
 
   els.form.addEventListener("submit", async (e) => {

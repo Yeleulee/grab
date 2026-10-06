@@ -35,6 +35,9 @@
 .btn.primary:hover:not(:disabled) { background: #000; }
 .google-btn { background: var(--paper); border-color: var(--line-strong); color: var(--ink); }
 .google-btn:hover:not(:disabled) { background: #fafafa; border-color: var(--ink); }
+.btn.secondary { background: rgba(0,0,0,.06); color: var(--ink); }
+.btn.secondary:hover:not(:disabled) { background: rgba(0,0,0,.1); }
+#auth-ui { display: flex; flex-direction: column; gap: 14px; }
 .divider { display: flex; align-items: center; gap: 12px; color: var(--muted-2); font-size: 12px; }
 .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 
