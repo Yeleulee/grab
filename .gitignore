@@ -1,0 +1,7 @@
+node_modules/
+dist/
+downloads/
+bin/*.exe
+config.json
+data/
+cookies.txt

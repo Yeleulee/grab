@@ -1,0 +1,8 @@
+node_modules
+dist
+downloads
+data
+bin
+.git
+cookies.txt
+*.log
