@@ -1,9 +1,31 @@
 // Firebase Authentication for the browser. Loads the SDK from /vendor/firebase (served from node_modules
 // via an import map in index.html). Returns null when the server has no FIREBASE_* env vars set.
 
-export async function initFirebaseAuth(configUrl = "/firebase-config.json") {
-  let cfg = null;
-  try { cfg = await (await fetch(configUrl, { cache: "no-store" })).json(); } catch { return null; }
+/**
+ * Fetches JSON from the API, retrying while the server is unreachable or still booting (Render's free tier
+ * sleeps when idle and takes 30–60 s to wake, answering 502/503 meanwhile). Calls onWaiting(attempt) after
+ * the first failure so the UI can say "waking up the server". Gives up after ~2 minutes.
+ */
+export async function fetchWithWake(url, { onWaiting, timeoutMs = 120_000 } = {}) {
+  const started = Date.now();
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.ok) return await res.json();
+      if (res.status < 500) throw Object.assign(new Error(`HTTP ${res.status}`), { fatal: true });
+    } catch (e) {
+      if (e.fatal) throw e;
+    }
+    if (Date.now() - started > timeoutMs) throw new Error("The server didn't respond. Try again in a minute.");
+    onWaiting?.(attempt);
+    await new Promise((r) => setTimeout(r, Math.min(1500 + attempt * 1000, 5000)));
+  }
+}
+
+export async function initFirebaseAuth(configUrl = "/firebase-config.json", { onWaiting } = {}) {
+  // Throws when the server can't be reached at all (so callers can say so) and returns null only when the
+  // server answered that sign-in isn't configured.
+  const cfg = await fetchWithWake(configUrl, { onWaiting });
   if (!cfg?.apiKey || !cfg?.projectId) return null;
 
   const { initializeApp } = await import("firebase/app");

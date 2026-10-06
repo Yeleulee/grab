@@ -43,7 +43,28 @@ function setMode(m) {
   history.replaceState(null, "", `${location.pathname}?${new URLSearchParams({ ...(next !== "/app" && { next }), ...(signup && { mode: "signup" }) })}`.replace(/\?$/, ""));
 }
 
-const firebase = await initFirebaseAuth(`${API}/firebase-config.json`);
+// Nothing is clickable until the server has answered — otherwise the Google button silently does nothing.
+const controls = [els.google, els.submit, $("#redirect-btn")];
+controls.forEach((b) => (b.disabled = true));
+const originalSubtitle = els.subtitle.textContent;
+els.subtitle.textContent = "Connecting to the server…";
+
+let firebase;
+try {
+  firebase = await initFirebaseAuth(`${API}/firebase-config.json`, {
+    onWaiting: (attempt) => {
+      if (attempt >= 1) els.subtitle.textContent = "Waking up the server — it sleeps when idle, this usually takes 30–60 seconds…";
+    },
+  });
+} catch (e) {
+  els.title.textContent = "Can't reach the server";
+  els.subtitle.textContent = `${e.message} (${API || location.origin})`;
+  els.ui.hidden = true;
+  throw e;
+}
+controls.forEach((b) => (b.disabled = false));
+els.subtitle.textContent = originalSubtitle;
+
 if (!firebase) {
   els.ui.hidden = true;
   els.unavailable.hidden = false;

@@ -66,7 +66,12 @@ const authUrl = (path) => (token ? `${apiUrl(path)}${path.includes("?") ? "&" : 
 
 // Firebase Authentication (when the server has FIREBASE_* env vars). Null = not configured.
 let firebase = null;
-const firebaseReady = initFirebaseAuth(apiUrl("/firebase-config.json"))
+let serverUnreachable = false;
+const firebaseReady = initFirebaseAuth(apiUrl("/firebase-config.json"), {
+  onWaiting: (attempt) => {
+    if (attempt >= 1) { els.engine.className = "engine"; els.engineText.textContent = "Waking up server…"; }
+  },
+})
   .then(async (fb) => {
     firebase = fb;
     if (!fb) return;
@@ -78,7 +83,7 @@ const firebaseReady = initFirebaseAuth(apiUrl("/firebase-config.json"))
     if (fb.user) token = await fb.getToken();
     renderUser(fb.user);
   })
-  .catch((e) => { console.warn("Firebase auth unavailable:", e); firebase = null; });
+  .catch((e) => { console.warn("Server unreachable:", e); firebase = null; serverUnreachable = true; });
 
 function renderUser(user) {
   const chip = $("#user-chip"), img = $("#user-avatar"), initial = $("#user-initial");
@@ -246,7 +251,7 @@ $("#clear-finished-btn").addEventListener("click", async () => {
   closeMenu();
 });
 
-async function loadHealth() {
+async function loadHealth(attempt = 0) {
   try {
     const h = await api("/api/health");
     els.engine.className = `engine ${h.ok ? "ok" : "bad"}`;
@@ -261,9 +266,19 @@ async function loadHealth() {
       renderJobs();
     }
     if (!h.ok) toast("yt-dlp or ffmpeg is missing from bin/ — downloads won't work.", "error", 8000);
+    if (attempt > 0) toast("Server is awake.", "ok", 2500);
   } catch {
+    // Free-tier hosts sleep when idle; keep trying for ~2 minutes before calling it unreachable.
+    if (attempt < 24) {
+      els.engine.className = "engine";
+      els.engineText.textContent = attempt === 0 ? "Checking engine…" : "Waking up server…";
+      setTimeout(() => loadHealth(attempt + 1), 5000);
+      if (attempt === 1) toast("The server sleeps when idle — waking it up usually takes 30–60 seconds.", "info", 8000);
+      return;
+    }
     els.engine.className = "engine bad";
     els.engineText.textContent = "Server unreachable";
+    toast(`Can't reach the server at ${API || location.origin}. Check that it's running.`, "error", 10000);
   }
 }
 loadHealth();

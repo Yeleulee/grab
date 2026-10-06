@@ -53,7 +53,17 @@ if (cmp) {
   }, { threshold: 0.3 }).observe(cmp);
 }
 
-/* auth-aware nav: show "Log in" only when the server has Firebase sign-in enabled */
-fetch(`${API}/api/health`).then((r) => r.json()).then((h) => {
-  if (h?.auth?.firebase) for (const id of ["nav-login", "mobile-login", "foot-login"]) $(`#${id}`).hidden = false;
-}).catch(() => {});
+/* auth-aware nav: show "Log in" only when the server has Firebase sign-in enabled (retry while it wakes up) */
+(async function probe() {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    try {
+      const r = await fetch(`${API}/api/health`, { cache: "no-store" });
+      if (r.ok) {
+        const h = await r.json();
+        if (h?.auth?.firebase) for (const id of ["nav-login", "mobile-login", "foot-login"]) $(`#${id}`).hidden = false;
+        return;
+      }
+    } catch {}
+    await new Promise((res) => setTimeout(res, 5000));
+  }
+})();
