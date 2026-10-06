@@ -114,17 +114,16 @@ switch ($Command) {
     Test-Health
 
     $pwLine = Get-Content .render-password.txt -ErrorAction SilentlyContinue | Where-Object { $_ -like "password: *" }
-    if ($pwLine) {
-      $auth = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("grab:" + $pwLine.Substring(10)))
-      try {
-        $info = Invoke-RestMethod -Method Post -Uri "$AppUrl/api/info" -TimeoutSec 150 -ContentType "application/json" `
-          -Headers @{ Authorization = "Basic $auth" } -Body '{"url":"https://www.youtube.com/watch?v=aqz-KE-bpKQ"}'
-        Write-Host "YouTube OK: '$($info.title)' ($($info.qualities.Count) qualities)" -ForegroundColor Green
-      } catch {
-        $msg = $_.ErrorDetails.Message
-        Write-Host "YouTube still blocking: $msg" -ForegroundColor Red
-        Write-Host "Re-export fresh cookies (private/incognito window, then close it) and run this again." -ForegroundColor Yellow
-      }
+    $headers = @{}
+    if ($pwLine) { $headers.Authorization = "Basic " + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("grab:" + $pwLine.Substring(10))) }
+    try {
+      $info = Invoke-RestMethod -Method Post -Uri "$AppUrl/api/info" -TimeoutSec 150 -ContentType "application/json" `
+        -Headers $headers -Body '{"url":"https://www.youtube.com/watch?v=aqz-KE-bpKQ"}'
+      Write-Host "YouTube OK: '$($info.title)' ($($info.qualities.Count) qualities)" -ForegroundColor Green
+    } catch {
+      $msg = $_.ErrorDetails.Message
+      Write-Host "YouTube still blocking: $msg" -ForegroundColor Red
+      Write-Host "Re-export fresh cookies (private/incognito window, then close it) and run this again." -ForegroundColor Yellow
     }
   }
 }

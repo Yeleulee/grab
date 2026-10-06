@@ -8,9 +8,6 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
-      - key: APP_USER
-        value: grab
-      - key: APP_PASSWORD
-        sync: false # Render asks for this when you create the Blueprint; never commit it
+      # Optional: set APP_PASSWORD (and APP_USER) to require a sign-in. Without it the app is open to anyone with the URL.
       - key: ALLOWED_ORIGINS
         value: https://grab-blond.vercel.app # the Vercel frontend; comma-separate to add more

@@ -123,9 +123,10 @@ Already set up:
 | Backend + API | https://grab-dkfd.onrender.com (Render service `grab`) | Docker: Express + yt-dlp + ffmpeg, from private repo `Yeleulee/grab` (`main`) |
 
 The Vercel page calls the Render API **directly** (CORS via `ALLOWED_ORIGINS`), so long downloads, live progress
-(SSE) and file transfers never pass through Vercel's proxy limits. Sign in with the password in
-`.render-password.txt` (git-ignored, local only); the page exchanges it for a 30-day token (`POST /api/login`).
-Opening the Render URL directly still works with the browser's Basic-auth prompt (user `grab`).
+(SSE) and file transfers never pass through Vercel's proxy limits. There is **no password** right now: anyone with
+the link can use it. To require one, run `npm run render:env -- APP_PASSWORD <something>` then `npm run deploy`;
+the page then shows a sign-in form and exchanges the password for a 30-day token (`POST /api/login`), and opening
+the Render URL directly uses the browser's Basic-auth prompt (user `grab`).
 
 Day-to-day, from this folder:
 
