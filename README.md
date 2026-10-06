@@ -98,17 +98,22 @@ providers and authorised domains. Seeing `apiKey=…` in the sign-in URL is norm
 | Redirect sign-in comes back signed out | Chrome/Safari/Firefox block the third-party storage the redirect flow needs ([Firebase docs](https://firebase.google.com/docs/auth/web/redirect-best-practices)). Pop-up is the default for this reason. To make redirect work too, enable the auth proxy below. |
 | Nothing happens, no message | Hard-refresh (`Ctrl+F5`) — an old `login.js` kept errors inside the hidden email form. |
 
-**Optional: first-party auth proxy (makes redirect sign-in reliable)**
+**Optional but recommended: first-party auth proxy (sign-in that survives Incognito, ad-blockers, Safari)**
 
-The server (and a Vercel rewrite) can serve Firebase's sign-in helper from your own domain
-(`/__/auth/*` → `<project>.firebaseapp.com/__/auth/*`), which is Firebase's recommended fix. One-time setup:
+By default the sign-in pop-up runs on `grab-8ce58.firebaseapp.com`, a third party to your site. Incognito
+windows, "block third-party cookies", uBlock/Brave Shields and Safari all interfere, and the pop-up sits on
+`/__/auth/handler` forever. The server (and a Vercel rewrite) can instead serve Firebase's helper from your own
+domain (`/__/auth/*` → `<project>.firebaseapp.com/__/auth/*`) — Firebase's recommended fix. One-time setup:
 
 1. Google Cloud Console → *APIs & Services → Credentials* → open the OAuth 2.0 client named
    **“Web client (auto created by Google Service)”**.
-2. Under *Authorized redirect URIs* add `https://grabb-xi.vercel.app/__/auth/handler` and
-   `http://localhost:3000/__/auth/handler`. Under *Authorized JavaScript origins* add the two origins.
-3. Set `FIREBASE_AUTH_PROXY=1` (in `.env` locally, `npm run render:env -- FIREBASE_AUTH_PROXY 1` on Render)
-   and redeploy. The client then uses the page's own host as `authDomain`.
+2. Under *Authorized redirect URIs* add `https://grabb-xi.vercel.app/__/auth/handler`
+   (and `https://grab-dkfd.onrender.com/__/auth/handler` if you sign in there). Save.
+3. `npm run render:env -- FIREBASE_AUTH_PROXY 1` and wait for Render to restart (~1 min). The client then
+   uses the page's own host as `authDomain` on HTTPS sites. (Plain-http `localhost` keeps the default — the SDK
+   only loads the helper over https.)
+4. Verify with `npm run diag:popup https://grabb-xi.vercel.app/login` — it drives the real pop-up in a headed Edge
+   window and logs where it stops. `SIMULATE_PROXY=1` previews step 3 before flipping the flag.
 
 Without step 2, Google rejects the sign-in with `redirect_uri_mismatch`, so leave the flag at `0` until it's done.
 
