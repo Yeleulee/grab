@@ -18,14 +18,23 @@ burger.addEventListener("click", () => {
 });
 menu.addEventListener("click", (e) => { if (e.target.tagName === "A") { menu.hidden = true; burger.setAttribute("aria-expanded", "false"); } });
 
-/* hero video (rendered by scripts/render-hero.mjs): respect reduced motion, only play while on screen */
+/* hero video (rendered by scripts/render-hero.mjs): always autoplays muted, pauses only while off screen */
 (function heroVideo() {
   const v = $(".hero-video");
   if (!v) return;
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { v.removeAttribute("autoplay"); v.pause(); v.controls = true; return; }
+  // Browsers only allow autoplay when muted; set the property too, since the attribute alone isn't always honoured.
+  v.muted = true;
+  v.defaultMuted = true;
+  v.playsInline = true;
+  let onScreen = true;
+  const play = () => { if (onScreen && !document.hidden) v.play().catch(() => {}); };
   new IntersectionObserver((es) => {
-    for (const e of es) e.isIntersecting ? v.play().catch(() => {}) : v.pause();
-  }, { threshold: 0.25 }).observe(v);
+    for (const e of es) { onScreen = e.isIntersecting; onScreen ? play() : v.pause(); }
+  }, { threshold: 0 }).observe(v);
+  document.addEventListener("visibilitychange", play);
+  // If autoplay was still blocked (e.g. data saver / low-power mode), start on the first interaction.
+  for (const ev of ["pointerdown", "touchstart", "keydown", "scroll"]) addEventListener(ev, play, { once: true, passive: true });
+  if (v.readyState >= 2) play(); else v.addEventListener("canplay", play, { once: true });
 })();
 
 /* animate the compare bars when visible */
