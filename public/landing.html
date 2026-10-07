@@ -53,45 +53,17 @@
       </div>
     </section>
 
-    <!-- Product frame -->
+    <!-- Product frame: a rendered walkthrough of the app (scripts/render-hero.mjs). The poster is its final frame. -->
     <section class="frame-wrap reveal">
       <div class="frame">
         <div class="frame-bar">
           <span class="dot"></span><span class="dot"></span><span class="dot"></span>
           <span class="frame-url">127.0.0.1:3000/app</span>
         </div>
-        <div class="mock">
-          <div class="mock-top">
-            <div class="mock-brand"><img src="/logo.png" alt="" width="22" height="22" /><b>Grab</b></div>
-            <div class="mock-engine"><i></i>Engine ready</div>
-          </div>
-          <div class="mock-input"><span class="mock-url">https://www.youtube.com/watch?v=aqz-KE-bpKQ</span><span class="mock-btn">Fetch</span></div>
-          <div class="mock-grid">
-            <div class="mock-media">
-              <div class="mock-thumb"><span>BIG BUCK BUNNY</span><em>10:35</em></div>
-              <div class="mock-kv"><span>Channel</span><b>Blender</b></div>
-              <div class="mock-kv"><span>Views</span><b>23,414,066</b></div>
-              <div class="mock-kv"><span>Published</span><b>Nov 10, 2014</b></div>
-            </div>
-            <div class="mock-body">
-              <div class="mock-title">Big Buck Bunny 60fps 4K — Official Blender Foundation Short Film</div>
-              <div class="mock-tabs"><span class="on">Video · MP4</span><span>Audio only</span><span class="mock-pref"><span class="on">Best quality</span><span>Compatibility</span></span></div>
-              <div class="mock-rows" id="mock-rows">
-                <div class="row"><i></i><b>2160p60</b><span>AV1 · 8,982 kbps</span><em>689.2 MB</em></div>
-                <div class="row"><i></i><b>1440p60</b><span>AV1 · 3,940 kbps</span><em>307.9 MB</em></div>
-                <div class="row sel"><i></i><b>1080p60 <u>Recommended</u></b><span>VP9 · 2,127 kbps</span><em>168.7 MB</em></div>
-                <div class="row"><i></i><b>720p60</b><span>VP9 · 1,420 kbps</span><em>112.7 MB</em></div>
-                <div class="row"><i></i><b>480p</b><span>H.264 · 630 kbps</span><em>36.7 MB</em></div>
-              </div>
-              <div class="mock-cta"><span class="mock-btn big">Download 1080p60 MP4</span><span class="mock-note">About 168.7 MB · VP9</span></div>
-              <div class="mock-progress" id="mock-progress">
-                <div class="mock-prow"><span>Big Buck Bunny 60fps 4K — Official Blender…</span><em id="mock-pct">0%</em></div>
-                <div class="mock-bar"><div id="mock-fill"></div></div>
-                <div class="mock-stat" id="mock-stat">Video stream · 28.4 MB/s · 00:06 left</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <video class="hero-video" autoplay muted loop playsinline preload="metadata" poster="/hero-poster.jpg" aria-label="Grab fetching a YouTube video, choosing the recommended 1080p quality and downloading it">
+          <source src="/hero.webm" type="video/webm" />
+          <source src="/hero.mp4" type="video/mp4" />
+        </video>
       </div>
     </section>
 

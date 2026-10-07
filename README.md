@@ -127,6 +127,8 @@ src/auth.ts             Firebase config from FIREBASE_* env vars + ID-token veri
 public/                 UI. landing.html/css/js = marketing page · login.html/css/js = sign-in · app.html + app.js + styles.css = the downloader · auth.js = Firebase client
 .env.example            template for .env (Firebase keys); copy and fill in, never commit .env
 scripts/test-formats.mjs  end-to-end format matrix test
+scripts/hero-scene.html + render-hero.mjs  landing-page hero video: deterministic scene → Playwright frames → ffmpeg → public/hero.{mp4,webm} + hero-poster.jpg (npm run hero:render)
+scripts/export-cookies.mjs  npm run cookies:export — YouTube cookies from Brave/Chrome/Edge via DevTools (see Hosting)
 Dockerfile              Container deploy (see Hosting)
 render.yaml             Render Blueprint (free plan, auto-deploy, password)
 scripts/render.ps1      npm run deploy / vercel:deploy / render:status / render:logs / render:env / render:cookies

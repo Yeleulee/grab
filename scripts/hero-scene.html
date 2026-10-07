@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Hero scene</title>
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="../public/landing.css" />
+<style>
+  /* Deterministic scene for scripts/render-hero.mjs. The page exposes window.seek(ms): every frame is a pure
+     function of time so screenshots can be taken at exact timestamps. Reuses the .mock styles from landing.css. */
+  html, body { background: #fff; margin: 0; overflow: hidden; }
+  body { width: 1200px; }
+  .mock { min-height: 0; border-radius: 0; padding: 18px 24px 22px; transition: none !important; }
+  .mock * { transition: none !important; animation: none !important; }
+  .mock-url { position: relative; color: #333; }
+  .mock-url.empty { color: #9a9a9a; }
+  .mock-url .caret { display: inline-block; width: 1px; height: 16px; background: #111; margin-left: 1px; vertical-align: -3px; }
+  .mock-url .caret.off { visibility: hidden; }
+  .mock-input.focus .mock-url { border-color: #111; box-shadow: 0 0 0 3px rgba(0,0,0,.06); }
+  .mock-btn.press { background: #000; transform: scale(.97); }
+  .mock-btn.big.press { background: #000; }
+  .mock-rows .row.hover:not(.sel) { background: #f8f8f8; }
+
+  .mock-thumb { background: #000; overflow: hidden; }
+  .mock-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  /* skeleton while "fetching" */
+  .sk { background: linear-gradient(90deg, #eee 0%, #f6f6f6 50%, #eee 100%); background-size: 200% 100%; }
+  .sk-thumb { aspect-ratio: 16/9; margin-bottom: 12px; }
+  .sk-line { height: 11px; margin: 10px 0; }
+  .sk-title { height: 18px; width: 70%; margin-bottom: 18px; }
+  .sk-row { height: 40px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; padding: 0 8px 0 4px; }
+  .sk-row i { width: 12px; height: 12px; border-radius: 50%; }
+  .sk-row b { height: 11px; flex: 1; max-width: 90px; }
+  .sk-row em { height: 11px; width: 110px; margin-left: auto; }
+  .sk-row u { height: 11px; width: 60px; }
+
+  /* result fade/slide in */
+  .fade { opacity: 0; transform: translateY(8px); }
+  .fade.in { opacity: 1; transform: none; }
+
+  /* fake cursor */
+  #cursor { position: absolute; width: 22px; height: 22px; pointer-events: none; z-index: 10; filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); opacity: 0; }
+  #cursor.show { opacity: 1; }
+  #cursor.click { transform: scale(.85); }
+  .mock-btn.big.saved { background: var(--ok); }
+  .mock-done { display: flex; gap: 10px; margin-top: 12px; }
+  .mock-done span { padding: 7px 12px; border: 1px solid var(--line-strong); font-size: 12px; }
+  .mock-done span.dark { background: #262626; color: #fff; border-color: #262626; }
+</style>
+</head>
+<body>
+<div class="mock" id="mock">
+  <div class="mock-top">
+    <div class="mock-brand"><img src="../public/logo.png" alt="" width="22" height="22" /><b>Grab</b></div>
+    <div class="mock-engine"><i></i>Engine ready</div>
+  </div>
+  <div class="mock-input" id="input">
+    <span class="mock-url empty" id="url"><span id="url-text">Paste a YouTube link</span><span class="caret off" id="caret"></span></span>
+    <span class="mock-btn" id="fetch">Fetch</span>
+  </div>
+
+  <div class="mock-grid" id="skeleton" hidden>
+    <div class="mock-media">
+      <div class="sk sk-thumb"></div>
+      <div class="sk sk-line" style="width:60%"></div>
+      <div class="sk sk-line" style="width:75%"></div>
+      <div class="sk sk-line" style="width:55%"></div>
+    </div>
+    <div class="mock-body">
+      <div class="sk sk-title"></div>
+      <div class="sk-row"><i class="sk"></i><b class="sk"></b><u class="sk"></u><em class="sk"></em></div>
+      <div class="sk-row"><i class="sk"></i><b class="sk"></b><u class="sk"></u><em class="sk"></em></div>
+      <div class="sk-row"><i class="sk"></i><b class="sk"></b><u class="sk"></u><em class="sk"></em></div>
+      <div class="sk-row"><i class="sk"></i><b class="sk"></b><u class="sk"></u><em class="sk"></em></div>
+    </div>
+  </div>
+
+  <div class="mock-grid fade" id="result" hidden>
+    <div class="mock-media">
+      <div class="mock-thumb"><img src="hero-thumb.jpg" alt="" /><em>1:06</em></div>
+      <div class="mock-kv"><span>Channel</span><b>BiggieCheeseVEVO</b></div>
+      <div class="mock-kv"><span>Views</span><b>68,591,090</b></div>
+      <div class="mock-kv"><span>Published</span><b>Nov 7, 2016</b></div>
+    </div>
+    <div class="mock-body">
+      <div class="mock-title">Mr. Boombastic Official Music Video - Biggie Cheese</div>
+      <div class="mock-tabs"><span class="on">Video · MP4</span><span>Audio only</span><span class="mock-pref"><span class="on">Best quality</span><span>Compatibility</span></span></div>
+      <div class="mock-rows" id="rows">
+        <div class="row sel" data-h="1080"><i></i><b>1080p <u>Recommended</u></b><span>VP9 · 1,027 kbps · modern player</span><em>9.1 MB</em></div>
+        <div class="row" data-h="720"><i></i><b>720p</b><span>H.264 · 947 kbps</span><em>8.5 MB</em></div>
+        <div class="row" data-h="480"><i></i><b>480p</b><span>VP9 · 326 kbps · modern player</span><em>3.6 MB</em></div>
+        <div class="row" data-h="360"><i></i><b>360p</b><span>VP9 · 230 kbps · modern player</span><em>2.8 MB</em></div>
+        <div class="row" data-h="240"><i></i><b>240p</b><span>VP9 · 105 kbps · modern player</span><em>1.9 MB</em></div>
+      </div>
+      <div class="mock-cta"><span class="mock-btn big" id="dl">Download 1080p MP4</span><span class="mock-note" id="note">About 9.1 MB · VP9</span></div>
+      <div class="mock-progress" id="progress" hidden>
+        <div class="mock-prow"><span>Mr. Boombastic Official Music Video - Biggie Cheese</span><em id="pct">0%</em></div>
+        <div class="mock-bar"><div id="fill"></div></div>
+        <div class="mock-stat" id="stat">Starting…</div>
+      </div>
+    </div>
+  </div>
+</div>
+<svg id="cursor" viewBox="0 0 24 24"><path d="M5 3l14 8.5-6.2 1.3 3.6 6.6-2.6 1.4-3.6-6.6L5 18.5z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const URL_TEXT = "https://youtu.be/pZ-oEuWMszs";
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const ease = (t) => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+const lerp = (a, b, t) => a + (b - a) * t;
+const seg = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
+
+// Timeline (ms). Keep in sync with the comment in render-hero.mjs.
+const T = {
+  focus: 400,           // cursor arrives at input, caret shows
+  typeStart: 800, typeEnd: 2300,
+  toFetch: 2700, clickFetch: 3000,
+  skeletonEnd: 4300,    // results appear
+  toRow: 5200, hoverRow: 5700,   // cursor moves onto the 720p row, then up to the recommended 1080p
+  toDl: 6600, clickDl: 7000,
+  videoEnd: 10400,      // video stream done
+  audioEnd: 11600,      // audio stream done
+  mergeEnd: 12800,
+  done: 12800,
+  end: 15500,
+};
+
+const rect = (el) => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+function cursorAt(x, y) { const c = $("#cursor"); c.style.left = x + "px"; c.style.top = y + "px"; c.classList.add("show"); }
+function cursorMove(from, to, t) { cursorAt(lerp(from.x, to.x, ease(t)), lerp(from.y, to.y, ease(t))); }
+
+let targets = null;
+function measure() {
+  // Measured with the result visible so positions are stable across the whole timeline.
+  const sk = $("#skeleton"), res = $("#result");
+  const wasHidden = res.hidden; res.hidden = false; sk.hidden = true; res.classList.add("in");
+  const ri = rect($("#url")), rf = rect($("#fetch")), rAlt = rect($('[data-h="720"]')), rRec = rect($('[data-h="1080"]')), rdl = rect($("#dl"));
+  res.hidden = wasHidden;
+  targets = {
+    start: { x: 1100, y: 500 },
+    input: { x: ri.x + 160, y: ri.y + ri.h / 2 + 2 },
+    fetch: { x: rf.x + rf.w / 2 + 6, y: rf.y + rf.h / 2 + 4 },
+    rowAlt: { x: rAlt.x + 120, y: rAlt.y + rAlt.h / 2 + 3 },
+    rowRec: { x: rRec.x + 120, y: rRec.y + rRec.h / 2 + 3 },
+    dl: { x: rdl.x + rdl.w / 2 + 10, y: rdl.y + rdl.h / 2 + 5 },
+  };
+}
+
+// A 9 MB file: speeds and ETAs that look plausible instead of the 28 MB/s a 4K file would show.
+const speeds = ["4.2", "4.6", "3.9", "5.1", "4.8", "4.4", "5.3"];
+window.seek = function seek(t) {
+  if (!targets) measure();
+  const url = $("#url"), text = $("#url-text"), caret = $("#caret"), input = $("#input"), fetchBtn = $("#fetch");
+  const skeleton = $("#skeleton"), result = $("#result"), rows = [...document.querySelectorAll("#rows .row")];
+  const dl = $("#dl"), note = $("#note"), progress = $("#progress"), fill = $("#fill"), pct = $("#pct"), stat = $("#stat");
+
+  // --- input / typing ---
+  const typed = Math.round(URL_TEXT.length * ease(seg(t, T.typeStart, T.typeEnd)));
+  const focused = t >= T.focus && t < T.clickFetch;
+  input.classList.toggle("focus", focused);
+  if (typed === 0) { text.textContent = "Paste a YouTube link"; url.classList.add("empty"); }
+  else { text.textContent = URL_TEXT.slice(0, typed); url.classList.remove("empty"); }
+  caret.classList.toggle("off", !focused || Math.floor(t / 500) % 2 === 1 && (t < T.typeStart || t > T.typeEnd));
+  fetchBtn.classList.toggle("press", t >= T.clickFetch - 80 && t < T.clickFetch + 120);
+
+  // --- skeleton / result ---
+  const fetching = t >= T.clickFetch && t < T.skeletonEnd;
+  skeleton.hidden = !fetching;
+  if (fetching) skeleton.querySelectorAll(".sk").forEach((el) => (el.style.backgroundPosition = `${-((t - T.clickFetch) / 6) % 200}% 0`));
+  result.hidden = t < T.skeletonEnd;
+  const fadeT = ease(seg(t, T.skeletonEnd, T.skeletonEnd + 450));
+  result.style.opacity = fadeT; result.style.transform = `translateY(${(1 - fadeT) * 8}px)`;
+
+  // --- row hover ---
+  rows.forEach((r) => r.classList.remove("hover"));
+  if (t >= T.toRow && t < T.hoverRow) rows[1].classList.add("hover");
+  if (t >= T.hoverRow && t < T.toDl) rows[0].classList.add("hover");
+
+  // --- download ---
+  const downloading = t >= T.clickDl;
+  dl.classList.toggle("press", t >= T.clickDl - 80 && t < T.clickDl + 120);
+  progress.hidden = !downloading;
+  if (downloading) {
+    let shown, label;
+    if (t < T.videoEnd) {
+      const p = ease(seg(t, T.clickDl, T.videoEnd)) * 100;
+      shown = p * 0.62; label = `Video stream · ${speeds[Math.floor(t / 420) % speeds.length]} MB/s · 00:0${Math.max(0, Math.round((100 - p) / 40))} left`;
+    } else if (t < T.audioEnd) {
+      const p = ease(seg(t, T.videoEnd, T.audioEnd)) * 100;
+      shown = 62 + p * 0.3; label = `Audio stream · ${speeds[Math.floor(t / 420) % speeds.length]} MB/s · 00:0${Math.max(0, Math.round((100 - p) / 60))} left`;
+    } else if (t < T.mergeEnd) {
+      shown = 92 + ease(seg(t, T.audioEnd, T.mergeEnd)) * 8; label = "Merging video and audio";
+    } else {
+      shown = 100; label = "Completed · 9.1 MB";
+    }
+    fill.style.width = `${shown}%`;
+    pct.textContent = `${Math.floor(shown)}%`;
+    stat.textContent = label;
+    const done = t >= T.done;
+    fill.classList.toggle("done", done);
+    stat.style.color = done ? "var(--ok)" : "";
+    dl.textContent = done ? "Saved to Downloads" : "Downloading…";
+    dl.classList.toggle("saved", done);
+    note.textContent = done ? "Mr. Boombastic … [pZ-oEuWMszs] 1080p.mp4" : "About 9.1 MB · VP9";
+  } else {
+    dl.textContent = "Download 1080p MP4"; dl.classList.remove("saved"); note.textContent = "About 9.1 MB · VP9";
+  }
+
+  // --- cursor ---
+  const c = $("#cursor");
+  c.classList.remove("click");
+  // While typing the cursor is parked just under the caret, like a real pointer left over the field.
+  const caretX = () => { const r = caret.getBoundingClientRect(); return { x: r.left + 6, y: targets.input.y + 6 }; };
+  if (t < T.focus) cursorMove(targets.start, targets.input, seg(t, 0, T.focus));
+  else if (t < T.toFetch) { const k = caretX(); cursorAt(k.x, k.y); }
+  else if (t < T.clickFetch) cursorMove(caretX(), targets.fetch, seg(t, T.toFetch, T.clickFetch));
+  else if (t < T.skeletonEnd + 300) { cursorAt(targets.fetch.x, targets.fetch.y); if (t < T.clickFetch + 120) c.classList.add("click"); }
+  else if (t < T.toRow) cursorMove(targets.fetch, targets.rowAlt, seg(t, T.skeletonEnd + 300, T.toRow));
+  else if (t < T.hoverRow) cursorMove(targets.rowAlt, targets.rowRec, seg(t, T.toRow + 200, T.hoverRow));
+  else if (t < T.toDl) cursorAt(targets.rowRec.x, targets.rowRec.y);
+  else if (t < T.clickDl) cursorMove(targets.rowRec, targets.dl, seg(t, T.toDl, T.clickDl));
+  else if (t < T.clickDl + 900) { cursorAt(targets.dl.x, targets.dl.y); if (t < T.clickDl + 120) c.classList.add("click"); }
+  else { const k = ease(seg(t, T.clickDl + 900, T.clickDl + 1700)); cursorAt(lerp(targets.dl.x, targets.dl.x + 260, k), lerp(targets.dl.y, targets.dl.y + 140, k)); c.style.opacity = 1 - k; }
+  if (t < T.clickDl + 900) c.style.opacity = "";
+
+  document.body.style.height = "auto";
+  return document.body.scrollHeight;
+};
+window.T = T;
+</script>
+</body>
+</html>

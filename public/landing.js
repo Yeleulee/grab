@@ -18,30 +18,14 @@ burger.addEventListener("click", () => {
 });
 menu.addEventListener("click", (e) => { if (e.target.tagName === "A") { menu.hidden = true; burger.setAttribute("aria-expanded", "false"); } });
 
-/* animated download in the hero mock — loops: 0 → 100%, merging, completed, pause, restart */
-(function animateMock() {
-  const fill = $("#mock-fill"), pct = $("#mock-pct"), stat = $("#mock-stat");
-  if (!fill || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  let p = 0, phase = "video";
-  const speeds = ["27.1", "28.4", "26.9", "29.3", "31.0"];
-  const tick = () => {
-    if (phase === "video" || phase === "audio") {
-      p += 1.6 + Math.random() * 1.4;
-      if (p >= 100) { p = 100; phase = phase === "video" ? "audio-wait" : "merge"; }
-      const shown = phase === "audio" ? 50 + p / 2 : p / 2;
-      fill.style.width = `${Math.min(100, shown)}%`;
-      pct.textContent = `${Math.floor(Math.min(100, shown))}%`;
-      const left = Math.max(0, Math.round((100 - p) / 12));
-      stat.textContent = `${phase === "video" ? "Video" : "Audio"} stream · ${speeds[Math.floor(Math.random() * speeds.length)]} MB/s · 00:${String(left).padStart(2, "0")} left`;
-      return setTimeout(tick, 120);
-    }
-    if (phase === "audio-wait") { phase = "audio"; p = 0; return setTimeout(tick, 200); }
-    if (phase === "merge") { fill.style.width = "100%"; pct.textContent = "100%"; stat.textContent = "Merging video and audio"; phase = "done"; return setTimeout(tick, 1400); }
-    if (phase === "done") { fill.classList.add("done"); stat.textContent = "Completed · 168.7 MB"; stat.style.color = "var(--ok)"; phase = "reset"; return setTimeout(tick, 3200); }
-    fill.classList.remove("done"); fill.style.width = "0%"; pct.textContent = "0%"; stat.style.color = ""; p = 0; phase = "video";
-    setTimeout(tick, 600);
-  };
-  setTimeout(tick, 1200);
+/* hero video (rendered by scripts/render-hero.mjs): respect reduced motion, only play while on screen */
+(function heroVideo() {
+  const v = $(".hero-video");
+  if (!v) return;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { v.removeAttribute("autoplay"); v.pause(); v.controls = true; return; }
+  new IntersectionObserver((es) => {
+    for (const e of es) e.isIntersecting ? v.play().catch(() => {}) : v.pause();
+  }, { threshold: 0.25 }).observe(v);
 })();
 
 /* animate the compare bars when visible */

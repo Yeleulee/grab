@@ -15,6 +15,7 @@
                     "render:open":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 open",
                     "render:cookies":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 cookies",
                     "cookies:export":  "node scripts/export-cookies.mjs",
+                    "hero:render":  "node scripts/render-hero.mjs",
                     "render:env":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 env",
                     "vercel:deploy":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 vercel",
                     "diag:popup":  "node scripts/diag-popup.mjs"

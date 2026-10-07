@@ -111,7 +111,10 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .frame-bar { display: flex; align-items: center; gap: 8px; padding: 2px 6px 14px; }
 .frame-bar .dot { width: 10px; height: 10px; border-radius: 50%; background: #2c2c2e; }
 .frame-url { margin-left: 10px; font-family: var(--mono); font-size: 12px; color: #6e6e73; background: #1a1a1c; padding: 4px 12px; border-radius: 6px; }
+.hero-video { display: block; width: 100%; height: auto; border-radius: 12px 12px 0 0; background: #fff; }
+@media (prefers-reduced-motion: reduce) { .hero-video { pointer-events: none; } }
 
+/* .mock styles are shared with scripts/hero-scene.html, which renders the hero video. */
 .mock {
   background: #fff; color: #111; border-radius: 12px 12px 0 0;
   padding: 18px 24px 24px; font-size: 13px;
