@@ -2,234 +2,347 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Hero scene</title>
+<title>Grab — hero motion</title>
 <link rel="preconnect" href="https://rsms.me/" />
 <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
-<link rel="stylesheet" href="../public/landing.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" />
 <style>
-  /* Deterministic scene for scripts/render-hero.mjs. The page exposes window.seek(ms): every frame is a pure
-     function of time so screenshots can be taken at exact timestamps. Reuses the .mock styles from landing.css. */
-  html, body { background: #fff; margin: 0; overflow: hidden; }
-  body { width: 1200px; }
-  .mock { min-height: 0; border-radius: 0; padding: 18px 24px 22px; transition: none !important; }
-  .mock * { transition: none !important; animation: none !important; }
-  .mock-url { position: relative; color: #333; }
-  .mock-url.empty { color: #9a9a9a; }
-  .mock-url .caret { display: inline-block; width: 1px; height: 16px; background: #111; margin-left: 1px; vertical-align: -3px; }
-  .mock-url .caret.off { visibility: hidden; }
-  .mock-input.focus .mock-url { border-color: #111; box-shadow: 0 0 0 3px rgba(0,0,0,.06); }
-  .mock-btn.press { background: #000; transform: scale(.97); }
-  .mock-btn.big.press { background: #000; }
-  .mock-rows .row.hover:not(.sel) { background: #f8f8f8; }
+/* Motion-design hero for the landing page, rendered by scripts/render-hero.mjs.
+   Every style is computed from time inside window.seek(ms): no CSS transitions, no timers, no state carried
+   between frames. One element (#pill) morphs through the whole product flow; the last frame equals the first. */
+:root {
+  --font: "Inter", "Inter Variable", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+  --canvas: #e9e9e9; --ink: #141414; --ink-2: #262626; --muted: #6b6b6b; --line: rgba(0,0,0,.1);
+  --accent: #ff3b3b; --ok: #1a7f37; --ok-dark: #3ddc84;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--canvas); }
+body { font-family: var(--font); color: var(--ink); -webkit-font-smoothing: antialiased; font-feature-settings: "tnum", "ss01"; }
+#stage { position: absolute; inset: 0; transform-origin: 960px 540px; }
+#bg { position: absolute; inset: 0; background: var(--canvas); }
+#bg.dark { background: var(--ink); }
 
-  .mock-thumb { background: #000; overflow: hidden; }
-  .mock-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* editorial frame chrome */
+.chrome { position: absolute; font-family: var(--mono); font-size: 17px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.chrome.tl { left: 56px; top: 44px; } .chrome.tr { right: 56px; top: 44px; }
+.chrome.bl { left: 56px; bottom: 44px; } .chrome.br { right: 56px; bottom: 44px; }
+.rail { position: absolute; left: 56px; right: 56px; bottom: 70px; height: 1px; background: rgba(0,0,0,.15); }
+.rail i { position: absolute; left: 0; top: -1px; height: 3px; background: var(--ink); }
+.rail b { position: absolute; top: -3px; width: 1px; height: 7px; background: rgba(0,0,0,.25); }
+.dark .chrome { color: rgba(255,255,255,.5); } .dark .rail { background: rgba(255,255,255,.18); } .dark .rail i { background: #fff; } .dark .rail b { background: rgba(255,255,255,.3); }
 
-  /* skeleton while "fetching" */
-  .sk { background: linear-gradient(90deg, #eee 0%, #f6f6f6 50%, #eee 100%); background-size: 200% 100%; }
-  .sk-thumb { aspect-ratio: 16/9; margin-bottom: 12px; }
-  .sk-line { height: 11px; margin: 10px 0; }
-  .sk-title { height: 18px; width: 70%; margin-bottom: 18px; }
-  .sk-row { height: 40px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; padding: 0 8px 0 4px; }
-  .sk-row i { width: 12px; height: 12px; border-radius: 50%; }
-  .sk-row b { height: 11px; flex: 1; max-width: 90px; }
-  .sk-row em { height: 11px; width: 110px; margin-left: auto; }
-  .sk-row u { height: 11px; width: 60px; }
+/* kinetic type */
+.kin { position: absolute; left: 0; right: 0; text-align: center; text-transform: uppercase; font-weight: 600; letter-spacing: -0.045em; line-height: .9; }
+.kin .line { display: block; overflow: hidden; padding: 0 .04em; }
+.kin .w { display: inline-block; white-space: pre; will-change: auto; }
+.kin .dot { color: var(--accent); display: inline-block; }
+#title { top: 300px; font-size: 230px; }
+#closer { top: 250px; font-size: 176px; }
+.dark #closer { color: #fff; }
+#chips { position: absolute; left: 0; right: 0; top: 790px; display: flex; justify-content: center; gap: 14px; }
+#chips span { display: inline-block; padding: 12px 20px; border: 1.5px solid rgba(0,0,0,.25); border-radius: 10px; font-size: 22px; font-weight: 500; }
+#chips span.ink { background: var(--ink); color: #fff; border-color: var(--ink); }
 
-  /* result fade/slide in */
-  .fade { opacity: 0; transform: translateY(8px); }
-  .fade.in { opacity: 1; transform: none; }
+/* the one element */
+#pill { position: absolute; left: 960px; top: 540px; background: #fff; border: 1.5px solid rgba(0,0,0,.12);
+  box-shadow: 0 30px 60px -30px rgba(0,0,0,.35), 0 2px 6px rgba(0,0,0,.06); overflow: hidden; }
+.dark #pill { background: #1c1c1e; border-color: rgba(255,255,255,.08); color: #fff; box-shadow: 0 40px 80px -30px rgba(0,0,0,.8); }
+.layer { position: absolute; inset: 0; }
+/* input */
+.in { display: flex; align-items: center; padding: 0 16px 0 32px; }
+.in .url { flex: 1; font-size: 30px; color: var(--ink); white-space: nowrap; }
+.in .url.ph { color: #9a9a9a; }
+.in .caret { display: inline-block; width: 2px; height: 36px; background: var(--ink); vertical-align: -6px; margin-left: 2px; }
+.in .btn { height: 56px; padding: 0 28px; border-radius: 28px; background: var(--ink); color: #fff; font-weight: 500; font-size: 24px; display: flex; align-items: center; }
+/* loader */
+.ld { display: grid; place-items: center; }
+.ld i { width: 44px; height: 44px; border-radius: 50%; border: 4px solid rgba(0,0,0,.1); border-top-color: var(--ink); }
+/* result card */
+.rs { padding: 32px; }
+.rs .thumb { position: absolute; left: 32px; top: 32px; width: 520px; height: 292px; border-radius: 16px; overflow: hidden; background: #000; }
+.rs .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rs .thumb em { position: absolute; right: 12px; bottom: 12px; font-style: normal; background: rgba(0,0,0,.8); color: #fff; font-size: 16px; padding: 4px 10px; border-radius: 6px; font-family: var(--mono); }
+.rs .ttl { position: absolute; left: 588px; top: 40px; right: 32px; font-size: 38px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+.rs .meta { position: absolute; left: 588px; top: 142px; font-size: 20px; color: var(--muted); }
+.rs .meta b { color: var(--ink); font-weight: 500; }
+.rs .rows { position: absolute; left: 588px; right: 32px; top: 196px; }
+.rs .row { position: relative; height: 64px; display: grid; grid-template-columns: 24px 236px 1fr auto; align-items: center; gap: 18px; padding: 0 20px; border-radius: 14px; font-size: 22px; }
+.rs .row i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(0,0,0,.3); display: grid; place-items: center; }
+.rs .row i::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); opacity: 0; }
+.rs .row.on i { border-color: var(--ink); } .rs .row.on i::after { opacity: 1; }
+.rs .row b { font-weight: 600; }
+.rs .row span { color: var(--muted); font-size: 19px; }
+.rs .row em { font-style: normal; font-family: var(--mono); font-size: 19px; }
+.rs .ind { position: absolute; left: 588px; right: 32px; height: 64px; border-radius: 14px; background: #f1f1f1; }
+.rs .tag { position: absolute; font-size: 15px; font-weight: 600; color: #fff; background: var(--accent); padding: 5px 10px; border-radius: 7px; letter-spacing: .01em; }
+.rs .cta { position: absolute; left: 588px; bottom: 32px; height: 60px; padding: 0 28px; border-radius: 30px; background: var(--ink); color: #fff; font-size: 22px; font-weight: 500; display: flex; align-items: center; gap: 12px; }
+/* download card */
+.dl { padding: 36px 44px; color: #fff; }
+.dl .mini { position: absolute; left: 44px; top: 36px; width: 196px; height: 110px; border-radius: 12px; overflow: hidden; }
+.dl .mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dl .ttl { position: absolute; left: 268px; top: 42px; right: 560px; font-size: 30px; font-weight: 600; letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl .st { position: absolute; left: 268px; top: 94px; font-size: 20px; color: rgba(255,255,255,.55); font-family: var(--mono); }
+.dl .pct { position: absolute; right: 44px; top: 18px; font-family: var(--mono); font-size: 128px; font-weight: 500; letter-spacing: -0.04em; line-height: 1; }
+.dl .pct small { font-size: 48px; vertical-align: 24px; margin-left: 4px; color: rgba(255,255,255,.55); }
+.dl .bar { position: absolute; left: 44px; right: 44px; bottom: 36px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+.dl .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: #fff; border-radius: 3px; }
+.dl .bar i.ok { background: var(--ok-dark); }
+.dl .check { position: absolute; right: 44px; top: 40px; width: 96px; height: 96px; }
+.dl .check circle { fill: none; stroke: var(--ok-dark); stroke-width: 6; }
+.dl .check path { fill: none; stroke: var(--ok-dark); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+.dl .saved { position: absolute; right: 160px; top: 54px; font-size: 34px; font-weight: 600; color: var(--ok-dark); white-space: nowrap; }
+/* saved toast */
+.ts { display: flex; align-items: center; justify-content: center; gap: 14px; font-size: 26px; font-weight: 500; white-space: nowrap; }
+.ts i { width: 26px; height: 26px; border-radius: 50%; background: var(--ok); display: grid; place-items: center; }
+.ts i::after { content: ""; width: 10px; height: 6px; border-left: 2.5px solid #fff; border-bottom: 2.5px solid #fff; transform: translateY(-1px) rotate(-45deg); }
 
-  /* fake cursor */
-  #cursor { position: absolute; width: 22px; height: 22px; pointer-events: none; z-index: 10; filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); opacity: 0; }
-  #cursor.show { opacity: 1; }
-  #cursor.click { transform: scale(.85); }
-  .mock-btn.big.saved { background: var(--ok); }
-  .mock-done { display: flex; gap: 10px; margin-top: 12px; }
-  .mock-done span { padding: 7px 12px; border: 1px solid var(--line-strong); font-size: 12px; }
-  .mock-done span.dark { background: #262626; color: #fff; border-color: #262626; }
+/* logo lockup */
+#lock { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: grid; place-items: center; }
+#lock .row { display: flex; align-items: center; gap: 36px; }
+#lock img { width: 150px; height: 150px; display: block; }
+#lock .word { font-size: 150px; font-weight: 600; letter-spacing: -0.05em; line-height: 1; overflow: hidden; display: inline-block; }
+#lock .word span { display: inline-block; }
+#lock .url { position: absolute; left: 0; right: 0; top: 700px; text-align: center; font-family: var(--mono); font-size: 26px; color: var(--muted); letter-spacing: .02em; }
+#lock .tag { position: absolute; left: 0; right: 0; top: 752px; text-align: center; font-size: 26px; color: var(--muted); }
 </style>
 </head>
 <body>
-<div class="mock" id="mock">
-  <div class="mock-top">
-    <div class="mock-brand"><img src="../public/logo.png" alt="" width="22" height="22" /><b>Grab</b></div>
-    <div class="mock-engine"><i></i>Engine ready</div>
+<div id="stage">
+  <div id="bg"></div>
+
+  <div class="kin" id="title">
+    <span class="line"><span class="w">Save </span><span class="w">any</span></span>
+    <span class="line"><span class="w">YouTube </span><span class="w">video</span><span class="w dot">.</span></span>
   </div>
-  <div class="mock-input" id="input">
-    <span class="mock-url empty" id="url"><span id="url-text">Paste a YouTube link</span><span class="caret off" id="caret"></span></span>
-    <span class="mock-btn" id="fetch">Fetch</span>
+  <div id="chips"><span class="ink">Up to 4K</span><span>MP4 · MP3 · M4A</span><span>No API keys</span></div>
+
+  <div id="pill">
+    <div class="layer in" data-layer="in"><span class="url ph" id="url">Paste a YouTube link<span class="caret" id="caret"></span></span><span class="btn" id="fetch">Fetch</span></div>
+    <div class="layer ld" data-layer="ld"><i id="spin"></i></div>
+    <div class="layer rs" data-layer="rs">
+      <div class="thumb"><img src="hero-thumb.jpg" alt="" /><em>1:06</em></div>
+      <div class="ttl" id="rs-ttl">Mr. Boombastic Official Music Video - Biggie Cheese</div>
+      <div class="meta" id="rs-meta"><b>BiggieCheeseVEVO</b> · 68,591,090 views · Nov 7, 2016</div>
+      <div class="ind" id="ind"></div>
+      <div class="rows" id="rows">
+        <div class="row on"><i></i><b>1080p</b><span>VP9 · 1,027 kbps</span><em>9.1 MB</em></div>
+        <div class="row"><i></i><b>720p</b><span>H.264 · 947 kbps</span><em>8.5 MB</em></div>
+        <div class="row"><i></i><b>480p</b><span>VP9 · 326 kbps</span><em>3.6 MB</em></div>
+        <div class="row"><i></i><b>360p</b><span>VP9 · 230 kbps</span><em>2.8 MB</em></div>
+      </div>
+      <div class="tag" id="tag">Recommended</div>
+      <div class="cta" id="cta">Download 1080p MP4 <span style="opacity:.6">→</span></div>
+    </div>
+    <div class="layer dl" data-layer="dl">
+      <div class="mini"><img src="hero-thumb.jpg" alt="" /></div>
+      <div class="ttl">Mr. Boombastic Official Music Video - Biggie Cheese</div>
+      <div class="st" id="dl-st">Video stream · 4.6 MB/s</div>
+      <div class="pct" id="dl-pct">0<small>%</small></div>
+      <svg class="check" id="check" viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" id="ck-c" transform="rotate(-90 50 50)"/><path d="M30 52 L45 66 L72 36" id="ck-p"/></svg>
+      <div class="saved" id="saved">Saved to Downloads</div>
+      <div class="bar"><i id="dl-fill"></i></div>
+    </div>
+    <div class="layer ts" data-layer="ts"><i></i>Saved · 9.1 MB</div>
   </div>
 
-  <div class="mock-grid" id="skeleton" hidden>
-    <div class="mock-media">
-      <div class="sk sk-thumb"></div>
-      <div class="sk sk-line" style="width:60%"></div>
-      <div class="sk sk-line" style="width:75%"></div>
-      <div class="sk sk-line" style="width:55%"></div>
-    </div>
-    <div class="mock-body">
-      <div class="sk sk-title"></div>
-      <div class="sk-row"><i class="sk"></i><b class="sk"></b><u class="sk"></u><em class="sk"></em></div>
-      <div class="sk-row"><i class="sk"></i><b class="sk"></b><u class="sk"></u><em class="sk"></em></div>
-      <div class="sk-row"><i class="sk"></i><b class="sk"></b><u class="sk"></u><em class="sk"></em></div>
-      <div class="sk-row"><i class="sk"></i><b class="sk"></b><u class="sk"></u><em class="sk"></em></div>
-    </div>
+  <div class="kin" id="closer">
+    <span class="line"><span class="w">No </span><span class="w">ads</span><span class="w dot">.</span></span>
+    <span class="line"><span class="w">No </span><span class="w">API </span><span class="w">keys</span><span class="w dot">.</span></span>
+    <span class="line"><span class="w">Nothing </span><span class="w">uploaded</span><span class="w dot">.</span></span>
   </div>
 
-  <div class="mock-grid fade" id="result" hidden>
-    <div class="mock-media">
-      <div class="mock-thumb"><img src="hero-thumb.jpg" alt="" /><em>1:06</em></div>
-      <div class="mock-kv"><span>Channel</span><b>BiggieCheeseVEVO</b></div>
-      <div class="mock-kv"><span>Views</span><b>68,591,090</b></div>
-      <div class="mock-kv"><span>Published</span><b>Nov 7, 2016</b></div>
-    </div>
-    <div class="mock-body">
-      <div class="mock-title">Mr. Boombastic Official Music Video - Biggie Cheese</div>
-      <div class="mock-tabs"><span class="on">Video · MP4</span><span>Audio only</span><span class="mock-pref"><span class="on">Best quality</span><span>Compatibility</span></span></div>
-      <div class="mock-rows" id="rows">
-        <div class="row sel" data-h="1080"><i></i><b>1080p <u>Recommended</u></b><span>VP9 · 1,027 kbps · modern player</span><em>9.1 MB</em></div>
-        <div class="row" data-h="720"><i></i><b>720p</b><span>H.264 · 947 kbps</span><em>8.5 MB</em></div>
-        <div class="row" data-h="480"><i></i><b>480p</b><span>VP9 · 326 kbps · modern player</span><em>3.6 MB</em></div>
-        <div class="row" data-h="360"><i></i><b>360p</b><span>VP9 · 230 kbps · modern player</span><em>2.8 MB</em></div>
-        <div class="row" data-h="240"><i></i><b>240p</b><span>VP9 · 105 kbps · modern player</span><em>1.9 MB</em></div>
-      </div>
-      <div class="mock-cta"><span class="mock-btn big" id="dl">Download 1080p MP4</span><span class="mock-note" id="note">About 9.1 MB · VP9</span></div>
-      <div class="mock-progress" id="progress" hidden>
-        <div class="mock-prow"><span>Mr. Boombastic Official Music Video - Biggie Cheese</span><em id="pct">0%</em></div>
-        <div class="mock-bar"><div id="fill"></div></div>
-        <div class="mock-stat" id="stat">Starting…</div>
-      </div>
-    </div>
+  <div id="lock">
+    <div class="row"><img src="../public/logo.png" alt="" id="lock-logo" /><span class="word" id="lock-word"><span>G</span><span>r</span><span>a</span><span>b</span></span></div>
+    <div class="url" id="lock-url">grabb-xi.vercel.app</div>
+    <div class="tag" id="lock-tag">Save any YouTube video. Local. Private. Free.</div>
   </div>
 </div>
-<svg id="cursor" viewBox="0 0 24 24"><path d="M5 3l14 8.5-6.2 1.3 3.6 6.6-2.6 1.4-3.6-6.6L5 18.5z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>
+
+<!-- Editorial chrome sits outside the camera so it never scales or blurs. -->
+<div class="chrome tl">Grab · Motion</div>
+<div class="chrome tr" id="scene-no">01 / 04</div>
+<div class="chrome bl" id="tc">00:00:00 / 00:16</div>
+<div class="chrome br">1920 × 1080 · 30 FPS</div>
+<div class="rail" id="rail"><i id="rail-fill"></i></div>
 
 <script>
-const $ = (s) => document.querySelector(s);
-const URL_TEXT = "https://youtu.be/pZ-oEuWMszs";
+/* ---------- motion math ---------- */
+const DUR = 16000;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const ease = (t) => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
-const lerp = (a, b, t) => a + (b - a) * t;
+const lerp = (a, b, k) => a + (b - a) * k;
 const seg = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
+const expo = (k) => (k >= 1 ? 1 : 1 - Math.pow(2, -10 * k));
+const inOut = (k) => (k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+const back = (k) => { const c = 1.4; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+// Closed-form under-damped spring step response: 0 → 1 with a tiny overshoot. omega in rad/ms.
+function spring(dt, omega = 0.018, zeta = 0.78) {
+  if (dt <= 0) return 0;
+  const wd = omega * Math.sqrt(1 - zeta * zeta);
+  return 1 - Math.exp(-zeta * omega * dt) * (Math.cos(wd * dt) + (zeta * omega / wd) * Math.sin(wd * dt));
+}
+// A value that changes target many times is the sum of one spring per change, so it stays a pure function of time.
+function track(t, keys, omega, zeta) {
+  let v = keys[0][1];
+  for (let i = 1; i < keys.length; i++) v += (keys[i][1] - keys[i - 1][1]) * spring(t - keys[i][0], omega, zeta);
+  return v;
+}
+// Enter/exit window: returns [enter 0→1, exit 0→1].
+const win = (t, a, da, b, db, ezIn = expo, ezOut = expo) => [ezIn(seg(t, a, a + da)), b == null ? 0 : ezOut(seg(t, b, b + db))];
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+const px = (n) => `${n}px`;
 
-// Timeline (ms). Keep in sync with the comment in render-hero.mjs.
-const T = {
-  focus: 400,           // cursor arrives at input, caret shows
-  typeStart: 800, typeEnd: 2300,
-  toFetch: 2700, clickFetch: 3000,
-  skeletonEnd: 4300,    // results appear
-  toRow: 5200, hoverRow: 5700,   // cursor moves onto the 720p row, then up to the recommended 1080p
-  toDl: 6600, clickDl: 7000,
-  videoEnd: 10400,      // video stream done
-  audioEnd: 11600,      // audio stream done
-  mergeEnd: 12800,
-  done: 12800,
-  end: 15500,
-};
-
-const rect = (el) => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
-function cursorAt(x, y) { const c = $("#cursor"); c.style.left = x + "px"; c.style.top = y + "px"; c.classList.add("show"); }
-function cursorMove(from, to, t) { cursorAt(lerp(from.x, to.x, ease(t)), lerp(from.y, to.y, ease(t))); }
-
-let targets = null;
-function measure() {
-  // Measured with the result visible so positions are stable across the whole timeline.
-  const sk = $("#skeleton"), res = $("#result");
-  const wasHidden = res.hidden; res.hidden = false; sk.hidden = true; res.classList.add("in");
-  const ri = rect($("#url")), rf = rect($("#fetch")), rAlt = rect($('[data-h="720"]')), rRec = rect($('[data-h="1080"]')), rdl = rect($("#dl"));
-  res.hidden = wasHidden;
-  targets = {
-    start: { x: 1100, y: 500 },
-    input: { x: ri.x + 160, y: ri.y + ri.h / 2 + 2 },
-    fetch: { x: rf.x + rf.w / 2 + 6, y: rf.y + rf.h / 2 + 4 },
-    rowAlt: { x: rAlt.x + 120, y: rAlt.y + rAlt.h / 2 + 3 },
-    rowRec: { x: rRec.x + 120, y: rRec.y + rRec.h / 2 + 3 },
-    dl: { x: rdl.x + rdl.w / 2 + 10, y: rdl.y + rdl.h / 2 + 5 },
-  };
+/* Kinetic lines: words rise from the clipped line on enter, drop out on exit, both staggered. */
+function kinetic(el, t, a, b, stag = 70, dur = 700) {
+  const words = el.querySelectorAll(".w");
+  let any = false;
+  words.forEach((w, i) => {
+    const k = expo(seg(t, a + i * stag, a + i * stag + dur));
+    const x = b == null ? 0 : expo(seg(t, b + i * stag * .6, b + i * stag * .6 + dur * .7));
+    const ty = x > 0 ? -115 * x : 115 * (1 - k);
+    w.style.transform = `translateY(${ty}%)`;
+    if (w.classList.contains("dot")) { const p = back(seg(t, a + i * stag + 120, a + i * stag + 620)); w.style.transform += ` scale(${x > 0 ? 1 : p})`; }
+    if (k > 0 && x < 1) any = true;
+  });
+  el.style.visibility = any ? "visible" : "hidden";
 }
 
-// A 9 MB file: speeds and ETAs that look plausible instead of the 28 MB/s a 4K file would show.
-const speeds = ["4.2", "4.6", "3.9", "5.1", "4.8", "4.4", "5.3"];
-window.seek = function seek(t) {
-  if (!targets) measure();
-  const url = $("#url"), text = $("#url-text"), caret = $("#caret"), input = $("#input"), fetchBtn = $("#fetch");
-  const skeleton = $("#skeleton"), result = $("#result"), rows = [...document.querySelectorAll("#rows .row")];
-  const dl = $("#dl"), note = $("#note"), progress = $("#progress"), fill = $("#fill"), pct = $("#pct"), stat = $("#stat");
-
-  // --- input / typing ---
-  const typed = Math.round(URL_TEXT.length * ease(seg(t, T.typeStart, T.typeEnd)));
-  const focused = t >= T.focus && t < T.clickFetch;
-  input.classList.toggle("focus", focused);
-  if (typed === 0) { text.textContent = "Paste a YouTube link"; url.classList.add("empty"); }
-  else { text.textContent = URL_TEXT.slice(0, typed); url.classList.remove("empty"); }
-  caret.classList.toggle("off", !focused || Math.floor(t / 500) % 2 === 1 && (t < T.typeStart || t > T.typeEnd));
-  fetchBtn.classList.toggle("press", t >= T.clickFetch - 80 && t < T.clickFetch + 120);
-
-  // --- skeleton / result ---
-  const fetching = t >= T.clickFetch && t < T.skeletonEnd;
-  skeleton.hidden = !fetching;
-  if (fetching) skeleton.querySelectorAll(".sk").forEach((el) => (el.style.backgroundPosition = `${-((t - T.clickFetch) / 6) % 200}% 0`));
-  result.hidden = t < T.skeletonEnd;
-  const fadeT = ease(seg(t, T.skeletonEnd, T.skeletonEnd + 450));
-  result.style.opacity = fadeT; result.style.transform = `translateY(${(1 - fadeT) * 8}px)`;
-
-  // --- row hover ---
-  rows.forEach((r) => r.classList.remove("hover"));
-  if (t >= T.toRow && t < T.hoverRow) rows[1].classList.add("hover");
-  if (t >= T.hoverRow && t < T.toDl) rows[0].classList.add("hover");
-
-  // --- download ---
-  const downloading = t >= T.clickDl;
-  dl.classList.toggle("press", t >= T.clickDl - 80 && t < T.clickDl + 120);
-  progress.hidden = !downloading;
-  if (downloading) {
-    let shown, label;
-    if (t < T.videoEnd) {
-      const p = ease(seg(t, T.clickDl, T.videoEnd)) * 100;
-      shown = p * 0.62; label = `Video stream · ${speeds[Math.floor(t / 420) % speeds.length]} MB/s · 00:0${Math.max(0, Math.round((100 - p) / 40))} left`;
-    } else if (t < T.audioEnd) {
-      const p = ease(seg(t, T.videoEnd, T.audioEnd)) * 100;
-      shown = 62 + p * 0.3; label = `Audio stream · ${speeds[Math.floor(t / 420) % speeds.length]} MB/s · 00:0${Math.max(0, Math.round((100 - p) / 60))} left`;
-    } else if (t < T.mergeEnd) {
-      shown = 92 + ease(seg(t, T.audioEnd, T.mergeEnd)) * 8; label = "Merging video and audio";
-    } else {
-      shown = 100; label = "Completed · 9.1 MB";
-    }
-    fill.style.width = `${shown}%`;
-    pct.textContent = `${Math.floor(shown)}%`;
-    stat.textContent = label;
-    const done = t >= T.done;
-    fill.classList.toggle("done", done);
-    stat.style.color = done ? "var(--ok)" : "";
-    dl.textContent = done ? "Saved to Downloads" : "Downloading…";
-    dl.classList.toggle("saved", done);
-    note.textContent = done ? "Mr. Boombastic … [pZ-oEuWMszs] 1080p.mp4" : "About 9.1 MB · VP9";
-  } else {
-    dl.textContent = "Download 1080p MP4"; dl.classList.remove("saved"); note.textContent = "About 9.1 MB · VP9";
-  }
-
-  // --- cursor ---
-  const c = $("#cursor");
-  c.classList.remove("click");
-  // While typing the cursor is parked just under the caret, like a real pointer left over the field.
-  const caretX = () => { const r = caret.getBoundingClientRect(); return { x: r.left + 6, y: targets.input.y + 6 }; };
-  if (t < T.focus) cursorMove(targets.start, targets.input, seg(t, 0, T.focus));
-  else if (t < T.toFetch) { const k = caretX(); cursorAt(k.x, k.y); }
-  else if (t < T.clickFetch) cursorMove(caretX(), targets.fetch, seg(t, T.toFetch, T.clickFetch));
-  else if (t < T.skeletonEnd + 300) { cursorAt(targets.fetch.x, targets.fetch.y); if (t < T.clickFetch + 120) c.classList.add("click"); }
-  else if (t < T.toRow) cursorMove(targets.fetch, targets.rowAlt, seg(t, T.skeletonEnd + 300, T.toRow));
-  else if (t < T.hoverRow) cursorMove(targets.rowAlt, targets.rowRec, seg(t, T.toRow + 200, T.hoverRow));
-  else if (t < T.toDl) cursorAt(targets.rowRec.x, targets.rowRec.y);
-  else if (t < T.clickDl) cursorMove(targets.rowRec, targets.dl, seg(t, T.toDl, T.clickDl));
-  else if (t < T.clickDl + 900) { cursorAt(targets.dl.x, targets.dl.y); if (t < T.clickDl + 120) c.classList.add("click"); }
-  else { const k = ease(seg(t, T.clickDl + 900, T.clickDl + 1700)); cursorAt(lerp(targets.dl.x, targets.dl.x + 260, k), lerp(targets.dl.y, targets.dl.y + 140, k)); c.style.opacity = 1 - k; }
-  if (t < T.clickDl + 900) c.style.opacity = "";
-
-  document.body.style.height = "auto";
-  return document.body.scrollHeight;
+/* ---------- timeline (ms) ---------- */
+const T = {
+  titleIn: 150, titleOut: 2350,
+  pillIn: 2650, typeA: 3150, typeB: 4250, fetch: 4500,
+  loader: 4650, card: 5350, rowsIn: 6000, pick: 6750,
+  dark: 7450, dlIn: 7500, dlStart: 7900, dlEnd: 10300, saved: 10500, toast: 11050, toastOut: 11500,
+  light: 11650, closerIn: 11700, closerOut: 13250,
+  lockIn: 13850, lockOut: 15400,
 };
-window.T = T;
+const URL_TEXT = "https://youtu.be/pZ-oEuWMszs";
+const SPEEDS = ["4.6", "4.2", "5.1", "4.8", "3.9", "5.3", "4.4"];
+
+const bg = $("#bg"), stage = $("#stage"), pill = $("#pill");
+const layers = Object.fromEntries($$("#pill .layer").map((l) => [l.dataset.layer, l]));
+
+/* Pill geometry over time: [time, width, height, radius]. Each dimension rides its own spring sum. */
+const GEO = [
+  [T.pillIn - 1, 0, 0, 36],
+  [T.pillIn, 880, 72, 36],
+  [T.loader, 84, 84, 42],
+  [T.card, 1240, 356, 28],
+  [T.rowsIn - 60, 1240, 560, 28],
+  [T.dlIn, 1240, 200, 32],
+  [T.toast, 300, 72, 36],
+  [T.toastOut + 200, 300, 0, 36],
+];
+const geo = (t) => ({
+  w: Math.max(0, track(t, GEO.map((g) => [g[0], g[1]]), 0.017, 0.8)),
+  h: Math.max(0, track(t, GEO.map((g) => [g[0], g[2]]), 0.017, 0.8)),
+  r: track(t, GEO.map((g) => [g[0], g[3]]), 0.03, 1),
+});
+// Camera: zoom so each state fills the frame; the title and closer sit at 1.
+const CAM = [[0, 1], [T.pillIn, 1.08], [T.loader, 1.9], [T.card, 1], [T.dlIn, 1.18], [T.toast, 1.4], [T.light, 1]];
+
+/* Show a content layer with its own enter/exit timing so swaps never overlap (short blur on swap). */
+function layer(name, t, a, b, da = 260, db = 220) {
+  const el = layers[name];
+  const [k, x] = win(t, a, da, b, db);
+  const o = k * (1 - x);
+  el.style.opacity = o;
+  el.style.filter = o < 1 ? `blur(${(1 - o) * 6}px)` : "none";
+  el.style.visibility = o > 0.005 ? "visible" : "hidden";
+  return [k, x];
+}
+
+window.seek = function seek(t) {
+  t = ((t % DUR) + DUR) % DUR;
+  const dark = t >= T.dark && t < T.light;
+  bg.className = dark ? "dark" : "";
+  document.body.className = dark ? "dark" : "";
+
+  // chrome
+  const f = Math.floor((t / 1000) * 30) % 30, s = Math.floor(t / 1000);
+  $("#tc").textContent = `00:00:${String(s).padStart(2, "0")}:${String(f).padStart(2, "0")} / 00:16`;
+  $("#scene-no").textContent = t < T.pillIn ? "01 / 04" : t < T.dark ? "02 / 04" : t < T.light ? "03 / 04" : "04 / 04";
+  $("#rail-fill").style.width = `${(t / DUR) * 100}%`;
+  const rail = $("#rail");
+  if (!rail.dataset.ticks) { rail.dataset.ticks = 1; for (const k of ["pillIn", "dark", "light", "lockIn"]) { const b = document.createElement("b"); b.style.left = `${(T[k] / DUR) * 100}%`; rail.appendChild(b); } }
+
+  // camera
+  stage.style.transform = `scale(${track(t, CAM, 0.012, 0.9)})`;
+
+  // 01 — title + chips
+  kinetic($("#title"), t, T.titleIn, T.titleOut, 80, 760);
+  $$("#chips span").forEach((c, i) => {
+    const k = back(seg(t, T.titleIn + 900 + i * 90, T.titleIn + 1500 + i * 90)), x = expo(seg(t, T.titleOut - 100 + i * 40, T.titleOut + 300 + i * 40));
+    c.style.transform = `translateY(${(1 - k) * 30 + x * -40}px) scale(${lerp(.9, 1, k)})`;
+    c.style.opacity = clamp(k, 0, 1) * (1 - x);
+  });
+
+  // 02/03 — the one element
+  const g = geo(t);
+  const alive = t >= T.pillIn && t < T.toastOut + 400;
+  pill.style.visibility = alive && g.h > 1 ? "visible" : "hidden";
+  pill.style.width = px(g.w); pill.style.height = px(g.h); pill.style.borderRadius = px(g.r);
+  // the Fetch click compresses the whole element a touch (squash), then it springs back
+  const press = t >= T.fetch - 60 && t < T.fetch + 220 ? Math.sin(seg(t, T.fetch - 60, T.fetch + 220) * Math.PI) : 0;
+  pill.style.transform = `translate(-50%, -50%) scale(${1 - 0.03 * press})`;
+
+  // input layer
+  layer("in", t, T.pillIn + 80, T.loader - 120, 300, 180);
+  const typed = Math.round(URL_TEXT.length * inOut(seg(t, T.typeA, T.typeB)));
+  const url = $("#url"), caret = $("#caret");
+  if (typed === 0) { url.firstChild.textContent = "Paste a YouTube link"; url.classList.add("ph"); }
+  else { url.firstChild.textContent = URL_TEXT.slice(0, typed); url.classList.remove("ph"); }
+  caret.style.opacity = t < T.fetch && (t < T.typeA || t > T.typeB ? Math.floor(t / 450) % 2 === 0 : 1) ? 1 : 0;
+  $("#fetch").style.transform = `scale(${t >= T.fetch - 60 && t < T.fetch + 160 ? 0.94 : 1})`;
+  $("#fetch").style.background = t >= T.fetch - 60 && t < T.fetch + 160 ? "#000" : "";
+
+  // loader layer
+  layer("ld", t, T.loader + 60, T.card - 60, 220, 160);
+  $("#spin").style.transform = `rotate(${((t - T.loader) / 900) * 360}deg)`;
+
+  // result layer
+  const [rk] = layer("rs", t, T.card + 120, T.dlIn - 160, 380, 200);
+  const rsIn = (el, delay, dist = 26) => { const k = expo(seg(t, T.card + 160 + delay, T.card + 760 + delay)); el.style.opacity = k; el.style.transform = `translateY(${(1 - k) * dist}px)`; };
+  rsIn($(".rs .thumb"), 0, 40); rsIn($("#rs-ttl"), 90); rsIn($("#rs-meta"), 170);
+  $$("#rows .row").forEach((r, i) => { const k = expo(seg(t, T.rowsIn + i * 75, T.rowsIn + 560 + i * 75)); r.style.opacity = k; r.style.transform = `translateY(${(1 - k) * 34}px)`; });
+  // liquid indicator: two edges on different springs, lands behind the recommended row from below
+  const indTop = track(t, [[0, 196 + 64 * 3 + 60], [T.pick, 196]], 0.02, 0.72), indBot = track(t, [[0, 196 + 64 * 3 + 60 + 64], [T.pick - 60, 196 + 64]], 0.02, 0.72);
+  const ind = $("#ind"); ind.style.top = px(indTop); ind.style.height = px(Math.max(8, indBot - indTop)); ind.style.opacity = expo(seg(t, T.pick - 120, T.pick + 100));
+  $$("#rows .row").forEach((r, i) => r.classList.toggle("on", i === 0 && t >= T.pick - 40));
+  const tagK = back(seg(t, T.pick + 160, T.pick + 620)); const tag = $("#tag"); tag.style.left = px(588 + 20 + 24 + 18 + 76); tag.style.top = px(196 + 18); tag.style.opacity = clamp(tagK, 0, 1); tag.style.transform = `scale(${tagK})`;
+  const ctaK = expo(seg(t, T.pick + 300, T.pick + 900)); const cta = $("#cta"); cta.style.opacity = ctaK; cta.style.transform = `translateY(${(1 - ctaK) * 20}px) scale(${t >= T.dlIn - 220 && t < T.dlIn - 40 ? .96 : 1})`;
+
+  // download layer
+  layer("dl", t, T.dlIn + 140, T.toast - 120, 360, 200);
+  const p = inOut(seg(t, T.dlStart, T.dlEnd)) * 100;
+  const done = t >= T.dlEnd;
+  const pctEl = $("#dl-pct"); pctEl.innerHTML = `${Math.floor(p)}<small>%</small>`;
+  pctEl.style.opacity = done ? 1 - expo(seg(t, T.dlEnd, T.dlEnd + 200)) : expo(seg(t, T.dlIn + 300, T.dlIn + 700));
+  const fill = $("#dl-fill"); fill.style.width = `${p}%`; fill.classList.toggle("ok", done);
+  const phase = p < 62 ? "Video" : p < 92 ? "Audio" : null;
+  $("#dl-st").textContent = done ? "Completed · 9.1 MB" : phase ? `${phase} stream · ${SPEEDS[Math.floor(t / 380) % SPEEDS.length]} MB/s` : "Merging video and audio";
+  $("#dl-st").style.color = done ? "var(--ok-dark)" : "";
+  const ckK = expo(seg(t, T.dlEnd + 80, T.dlEnd + 680)), ckP = expo(seg(t, T.dlEnd + 380, T.dlEnd + 820));
+  const cc = $("#ck-c"), cp = $("#ck-p"); const C = 2 * Math.PI * 44, P = 70;
+  cc.style.strokeDasharray = C; cc.style.strokeDashoffset = C * (1 - ckK); cp.style.strokeDasharray = P; cp.style.strokeDashoffset = P * (1 - ckP);
+  $("#check").style.opacity = done ? 1 : 0; $("#check").style.transform = `scale(${lerp(.8, 1, back(seg(t, T.dlEnd + 80, T.dlEnd + 600)))})`;
+  const svK = expo(seg(t, T.dlEnd + 300, T.dlEnd + 800)); const sv = $("#saved"); sv.style.opacity = svK; sv.style.transform = `translateX(${(1 - svK) * 24}px)`;
+
+  // toast layer (light canvas returns right after)
+  layer("ts", t, T.toast + 120, T.toastOut, 260, 200);
+
+  // 04 — closer + lockup
+  kinetic($("#closer"), t, T.closerIn, T.closerOut, 60, 680);
+  const lk = back(seg(t, T.lockIn, T.lockIn + 700)), lx = expo(seg(t, T.lockOut, T.lockOut + 450));
+  const lock = $("#lock"); lock.style.visibility = lk > 0 && lx < 1 ? "visible" : "hidden"; lock.style.opacity = 1 - lx;
+  $("#lock-logo").style.transform = `scale(${lk}) rotate(${(1 - clamp(lk, 0, 1)) * -12}deg)`;
+  $$("#lock-word span").forEach((c, i) => { const k = expo(seg(t, T.lockIn + 220 + i * 60, T.lockIn + 900 + i * 60)); c.style.transform = `translateY(${(1 - k) * 110}%)`; });
+  const uk = expo(seg(t, T.lockIn + 700, T.lockIn + 1300)); $("#lock-url").style.opacity = uk; $("#lock-url").style.transform = `translateY(${(1 - uk) * 16}px)`;
+  const tk = expo(seg(t, T.lockIn + 850, T.lockIn + 1450)); $("#lock-tag").style.opacity = tk; $("#lock-tag").style.transform = `translateY(${(1 - tk) * 16}px)`;
+};
+window.SCENE = { width: 1920, height: 1080, duration: DUR, T };
+seek(0);
 </script>
 </body>
 </html>

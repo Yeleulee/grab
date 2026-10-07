@@ -112,6 +112,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .frame-bar .dot { width: 10px; height: 10px; border-radius: 50%; background: #2c2c2e; }
 .frame-url { margin-left: 10px; font-family: var(--mono); font-size: 12px; color: #6e6e73; background: #1a1a1c; padding: 4px 12px; border-radius: 6px; }
 .hero-video { display: block; width: 100%; height: auto; border-radius: 12px 12px 0 0; background: #fff; }
+.frame-video { padding: 10px; }
+.frame-video .hero-video { border-radius: 12px; background: #e9e9e9; aspect-ratio: 16 / 9; }
 @media (prefers-reduced-motion: reduce) { .hero-video { pointer-events: none; } }
 
 /* .mock styles are shared with scripts/hero-scene.html, which renders the hero video. */

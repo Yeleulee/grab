@@ -6,8 +6,30 @@
   <title>Grab — Save any YouTube video, in the quality you choose</title>
   <meta name="description" content="Grab downloads YouTube videos as MP4 up to 4K, or audio as MP3 / M4A. Runs on your own machine. No API keys, no ads, no upload." />
   <meta name="color-scheme" content="light" />
-  <meta property="og:title" content="Grab — YouTube Downloader" />
-  <meta property="og:description" content="Save any YouTube video, in the quality you choose. Local. Private. Free." />
+  <!-- Link previews (WhatsApp, Telegram, iMessage, X, Discord, Slack, LinkedIn…). Cards are static images; og:video is
+       picked up where supported (e.g. Facebook). Absolute URLs are required. Regenerate og.jpg: node scripts/render-hero.mjs --og -->
+  <link rel="canonical" href="https://grabb-xi.vercel.app/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Grab" />
+  <meta property="og:url" content="https://grabb-xi.vercel.app/" />
+  <meta property="og:title" content="Grab — Save any YouTube video." />
+  <meta property="og:description" content="Exact resolution, right codec, straight to your disk. Up to 4K · MP4 · MP3 · M4A. No ads, no API keys, nothing uploaded." />
+  <meta property="og:image" content="https://grabb-xi.vercel.app/og.jpg" />
+  <meta property="og:image:secure_url" content="https://grabb-xi.vercel.app/og.jpg" />
+  <meta property="og:image:type" content="image/jpeg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Grab — Save any YouTube video. A download card showing 1080p recommended." />
+  <meta property="og:video" content="https://grabb-xi.vercel.app/hero.mp4" />
+  <meta property="og:video:secure_url" content="https://grabb-xi.vercel.app/hero.mp4" />
+  <meta property="og:video:type" content="video/mp4" />
+  <meta property="og:video:width" content="1920" />
+  <meta property="og:video:height" content="1080" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Grab — Save any YouTube video." />
+  <meta name="twitter:description" content="Exact resolution, right codec, straight to your disk. No ads, no API keys, nothing uploaded." />
+  <meta name="twitter:image" content="https://grabb-xi.vercel.app/og.jpg" />
+  <meta name="theme-color" content="#e9e9e9" />
   <link rel="icon" type="image/png" href="/logo.png" />
   <link rel="preconnect" href="https://rsms.me/" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
@@ -53,14 +75,10 @@
       </div>
     </section>
 
-    <!-- Product frame: a rendered walkthrough of the app (scripts/render-hero.mjs). The poster is its final frame. -->
+    <!-- Product frame: a motion-design piece built from the real app flow (scripts/hero-scene.html → render-hero.mjs). -->
     <section class="frame-wrap reveal">
-      <div class="frame">
-        <div class="frame-bar">
-          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-          <span class="frame-url">127.0.0.1:3000/app</span>
-        </div>
-        <video class="hero-video" autoplay muted loop playsinline preload="metadata" poster="/hero-poster.jpg" aria-label="Grab fetching a YouTube video, choosing the recommended 1080p quality and downloading it">
+      <div class="frame frame-video">
+        <video class="hero-video" autoplay muted loop playsinline preload="metadata" poster="/hero-poster.jpg" aria-label="Save any YouTube video — Grab fetches a link, picks the recommended quality and downloads it">
           <source src="/hero.webm" type="video/webm" />
           <source src="/hero.mp4" type="video/mp4" />
         </video>

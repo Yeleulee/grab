@@ -127,7 +127,8 @@ src/auth.ts             Firebase config from FIREBASE_* env vars + ID-token veri
 public/                 UI. landing.html/css/js = marketing page · login.html/css/js = sign-in · app.html + app.js + styles.css = the downloader · auth.js = Firebase client
 .env.example            template for .env (Firebase keys); copy and fill in, never commit .env
 scripts/test-formats.mjs  end-to-end format matrix test
-scripts/hero-scene.html + render-hero.mjs  landing-page hero video: deterministic scene → Playwright frames → ffmpeg → public/hero.{mp4,webm} + hero-poster.jpg (npm run hero:render)
+scripts/hero-scene.html + render-hero.mjs  landing-page hero motion piece: time-driven scene (springs, one morphing element) → Playwright sub-frames → ffmpeg motion blur → public/hero.{mp4,webm} + hero-poster.jpg (npm run hero:render)
+scripts/og-card.html    link-preview card → public/og.jpg (npm run hero:render -- --og)
 scripts/export-cookies.mjs  npm run cookies:export — YouTube cookies from Brave/Chrome/Edge via DevTools (see Hosting)
 Dockerfile              Container deploy (see Hosting)
 render.yaml             Render Blueprint (free plan, auto-deploy, password)
@@ -244,13 +245,18 @@ If YouTube answers "Sign in to confirm you're not a bot" even though the built-i
 (`/api/health` → `potProvider: true`), add cookies on top. Render's IPs are blocked hard enough that this is
 required in practice; the PO token provider alone wasn't enough when tested:
 
-1. Close Brave (or Chrome/Edge) completely, then `npm run cookies:export -- brave` (or `chrome` / `edge`). It
-   opens the browser on Google's sign-in page — sign in with a **throwaway** Google account (it may get banned)
-   — and writes `cookies.txt` (git-ignored) as soon as the session appears. This works around Chromium's
-   app-bound cookie encryption, which breaks yt-dlp's `--cookies-from-browser` on Windows.
-   Alternative: export manually with an extension like *Get cookies.txt LOCALLY* (Netscape format).
-2. `npm run render:cookies` — uploads it as a Render Secret File, redeploys, and checks YouTube works.
+1. `npm run cookies:export -- brave` (or `chrome` / `edge`; your normal browser can stay open). It launches a
+   **throwaway browser profile** on Google's sign-in page — sign in with a **throwaway** Google account (it may
+   get banned) — writes `cookies.txt` (git-ignored) as soon as the session appears, then closes and deletes that
+   profile. This matters: YouTube rotates account cookies in any browser that stays signed in, which silently
+   invalidates every exported copy (yt-dlp then reports *"cookies are no longer valid"*). So never sign in to that
+   account in a normal browser afterwards, and don't export from your everyday profile or a browser extension.
+   (The DevTools route also sidesteps Chromium's app-bound cookie encryption, which breaks yt-dlp's
+   `--cookies-from-browser` on Windows.)
+2. `npm run render:cookies` — checks the file with yt-dlp first (refuses a rotated one), uploads it as a Render
+   Secret File and redeploys. `/api/health` then shows `cookies: true`; verify by fetching a video in the app.
 
-Cookies expire after a while; repeat when the error comes back. `POST /api/selftest` (signed in; body
+When the app says the server's cookies were invalidated, or the bot check comes back, repeat both steps.
+`POST /api/selftest` (signed in; body
 `{ "url"?, "clients"? }`) returns yt-dlp's diagnostics — which PO token providers loaded and what YouTube answered
 — and `YTDLP_PLAYER_CLIENTS` (e.g. `tv,web_embedded`) overrides the player clients yt-dlp tries.
