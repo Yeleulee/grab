@@ -10,6 +10,7 @@ import {
   getInfo,
   getVersion,
   normalizeYouTubeUrl,
+  selfTest,
   startDownload,
   updateYtDlp,
   type DownloadHandle,
@@ -279,6 +280,19 @@ app.post("/api/info", async (req, res) => {
     res.json(await getInfo(url));
   } catch (e: any) {
     res.status(422).json({ error: e.message });
+  }
+});
+
+// Remote diagnostics for "Sign in to confirm you're not a bot": which PO token providers loaded, which player
+// clients were tried and what YouTube said. Body: { url?, clients? } — clients overrides YTDLP_PLAYER_CLIENTS once.
+app.post("/api/selftest", async (req, res) => {
+  const url = normalizeYouTubeUrl(String(req.body?.url ?? "https://www.youtube.com/watch?v=aqz-KE-bpKQ"));
+  if (!url) return res.status(400).json({ error: "Please enter a valid YouTube URL." });
+  const clients = typeof req.body?.clients === "string" && /^[\w,-]+$/.test(req.body.clients) ? req.body.clients : undefined;
+  try {
+    res.json({ potProvider, ...(await selfTest(url, clients)) });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
 });
 

@@ -19,6 +19,18 @@ export function checkBinaries() {
 // yt-dlp is Python; without this its stdout on Windows is not UTF-8 and non-ASCII titles get mangled.
 const YTDLP_ENV = { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" };
 
+/**
+ * Flags shared by every yt-dlp invocation. Datacenter IPs get YouTube's "Sign in to confirm you're not a bot"
+ * on the default clients (visionos,web); YTDLP_PLAYER_CLIENTS picks alternative players (e.g. "tv,web_embedded")
+ * and YTDLP_COOKIES_FILE adds a logged-in session. Both are optional; local use needs neither.
+ */
+export function commonArgs(clients = process.env.YTDLP_PLAYER_CLIENTS): string[] {
+  const args: string[] = [];
+  if (process.env.YTDLP_COOKIES_FILE) args.push("--cookies", process.env.YTDLP_COOKIES_FILE);
+  if (clients) args.push("--extractor-args", `youtube:player_client=${clients}`);
+  return args;
+}
+
 const YT_HOSTS = new Set([
   "youtube.com",
   "www.youtube.com",
@@ -130,8 +142,7 @@ const formatCache = new Map<string, { at: number; formats: VideoFormat[]; durati
 const FORMAT_TTL = 10 * 60_000;
 
 async function fetchRaw(url: string) {
-  const args = ["--encoding", "utf-8", "-J", "--no-playlist", "--no-warnings"];
-  if (process.env.YTDLP_COOKIES_FILE) args.push("--cookies", process.env.YTDLP_COOKIES_FILE);
+  const args = ["--encoding", "utf-8", "-J", "--no-playlist", "--no-warnings", ...commonArgs()];
   const json = await run([...args, url]);
   const raw = JSON.parse(json);
   formatCache.set(raw.id, { at: Date.now(), formats: raw.formats ?? [], duration: raw.duration ?? 0 });
@@ -333,8 +344,8 @@ export async function startDownload(
     ),
     "--print",
     "after_move:filepath",
+    ...commonArgs(),
   ];
-  if (process.env.YTDLP_COOKIES_FILE) args.push("--cookies", process.env.YTDLP_COOKIES_FILE);
 
   if (opts.kind === "video") {
     const selector = await resolveVideoSelector(opts.url, opts.height ?? 1080, opts.codec ?? "best");
@@ -453,6 +464,42 @@ function cleanupPartials(url: string, outputDir: string) {
 
 export async function getVersion(): Promise<string> {
   return (await run(["--version"], 15_000)).trim();
+}
+
+export interface SelfTest {
+  ok: boolean;
+  clients: string | null;
+  title?: string;
+  error?: string;
+  /** yt-dlp's own verbose lines about PO token providers and which player clients it tried. */
+  diagnostics: string[];
+}
+
+/**
+ * Runs a metadata-only yt-dlp request with verbose logging so a hosted server can be diagnosed remotely:
+ * did the PO token plugin load, which clients were tried, and what did YouTube answer.
+ * `clients` overrides YTDLP_PLAYER_CLIENTS for this run only.
+ */
+export async function selfTest(url: string, clients?: string): Promise<SelfTest> {
+  const list = clients ?? process.env.YTDLP_PLAYER_CLIENTS ?? null;
+  const args = ["-v", "--encoding", "utf-8", "--simulate", "--no-playlist", "--print", "%(title)s", ...commonArgs(list ?? undefined), url];
+  const res = await new Promise<{ code: number | null; out: string; err: string }>((resolve, reject) => {
+    const child = spawn(YTDLP_PATH, args, { windowsHide: true, env: YTDLP_ENV });
+    let out = "", err = "";
+    const timer = setTimeout(() => { child.kill(); reject(new Error("yt-dlp timed out")); }, 90_000);
+    child.stdout.on("data", (d) => (out += d));
+    child.stderr.on("data", (d) => (err += d));
+    child.on("error", (e) => { clearTimeout(timer); reject(e); });
+    child.on("close", (code) => { clearTimeout(timer); resolve({ code, out, err }); });
+  });
+  const diagnostics = res.err
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => /\[pot|player client|PO Token|Extracting|ERROR|WARNING|Plugin directories|player_client|skipping/i.test(l))
+    .map((l) => l.slice(0, 400));
+  return res.code === 0
+    ? { ok: true, clients: list, title: res.out.trim(), diagnostics }
+    : { ok: false, clients: list, error: humanizeError(res.err), diagnostics };
 }
 
 export async function updateYtDlp(): Promise<string> {
