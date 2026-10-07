@@ -98,10 +98,11 @@ Nothing to configure.
 
 If YouTube still answers with the bot check (Render's IPs did, even with the provider), add cookies from a logged-in account on top:
 
-1. `npm run cookies:export -- brave` (or `chrome` / `edge`, browser closed first) — opens the browser on Google's sign-in page; sign in with a **throwaway** Google account and it writes `cookies.txt`. Or export manually with an extension like *Get cookies.txt LOCALLY*.
-2. Mount it into the container, e.g. `-v "$PWD/cookies.txt:/app/cookies.txt:ro"`.
-3. Set `YTDLP_COOKIES_FILE=/app/cookies.txt`.
-4. Cookies expire; re-export when downloads start failing again.
+1. `npm run cookies:export -- brave` (or `chrome` / `edge`; your normal browser can stay open) — launches a throwaway browser profile on Google's sign-in page; sign in with a **throwaway** Google account and it writes `cookies.txt`, then closes and deletes that profile.
+   Why a throwaway profile: YouTube rotates account cookies in any browser that stays signed in, which silently invalidates every exported copy (yt-dlp: *"cookies are no longer valid"*). Exports from your everyday profile or a browser extension die within hours. Never sign in to that account in a normal browser afterwards.
+2. Render: `npm run render:cookies` (checks the file with yt-dlp, uploads it as a Secret File, redeploys). Elsewhere: mount it into the container, e.g. `-v "$PWD/cookies.txt:/app/cookies.txt:ro"`, and set `YTDLP_COOKIES_FILE=/app/cookies.txt`.
+3. `GET /api/health` shows `"cookies": true` once the server is using the file.
+4. When the app reports that the server's cookies were invalidated (or the bot check returns), repeat from step 1.
 
 ---
 

@@ -142,7 +142,8 @@ const formatCache = new Map<string, { at: number; formats: VideoFormat[]; durati
 const FORMAT_TTL = 10 * 60_000;
 
 async function fetchRaw(url: string) {
-  const args = ["--encoding", "utf-8", "-J", "--no-playlist", "--no-warnings", ...commonArgs()];
+  // Warnings stay on here: "cookies are no longer valid" is the one line that explains a bot check on a hosted server.
+  const args = ["--encoding", "utf-8", "-J", "--no-playlist", ...commonArgs()];
   const json = await run([...args, url]);
   const raw = JSON.parse(json);
   formatCache.set(raw.id, { at: Date.now(), formats: raw.formats ?? [], duration: raw.duration ?? 0 });
@@ -238,17 +239,25 @@ function run(args: string[], timeoutMs = 60_000): Promise<string> {
       if (code === 0) resolve(out);
       else {
         // Surface the raw yt-dlp output in server logs (Render etc.) — the UI only gets the humanized line.
-        console.warn(`[yt-dlp] exit ${code}: ${err.trim().split("\n").filter((l) => l.startsWith("ERROR")).join(" | ") || err.trim().slice(0, 300)}`);
+        const lines = new Set(err.trim().split("\n").filter((l) => l.startsWith("ERROR") || COOKIES_ROTATED_RE.test(l)));
+        console.warn(`[yt-dlp] exit ${code}: ${[...lines].join(" | ") || err.trim().slice(0, 300)}`);
         reject(new Error(humanizeError(err || `yt-dlp exited with code ${code}`)));
       }
     });
   });
 }
 
+// yt-dlp's warning when YouTube rejects the account cookies because the browser they came from has rotated them.
+const COOKIES_ROTATED_RE = /cookies are no longer valid/i;
+
 export function humanizeError(stderr: string): string {
   const s = stderr.toLowerCase();
-  if (s.includes("sign in to confirm you're not a bot") || s.includes("sign in to confirm you’re not a bot"))
+  if (s.includes("sign in to confirm you're not a bot") || s.includes("sign in to confirm you’re not a bot")) {
+    // The warning alone is not the failure (a rotated jar still works from a home IP), so only explain it here.
+    if (COOKIES_ROTATED_RE.test(s))
+      return "The server's YouTube cookies were invalidated — the browser they were exported from rotated that session. Export a fresh set (npm run cookies:export) and upload it (npm run render:cookies).";
     return "YouTube is asking this server to prove it isn't a bot. Try again in a minute; if it keeps happening, the server needs fresh YouTube cookies (see DEPLOY.md).";
+  }
   if (s.includes("private video")) return "This video is private.";
   if (s.includes("video unavailable")) return "This video is unavailable.";
   if (s.includes("sign in to confirm your age") || s.includes("age-restricted"))

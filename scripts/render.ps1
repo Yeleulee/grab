@@ -39,7 +39,7 @@ function Get-Deploys {
 function Test-Health {
   try {
     $h = Invoke-RestMethod "$AppUrl/api/health" -TimeoutSec 90
-    Write-Host "Health: ok=$($h.ok) yt-dlp=$($h.ytdlpVersion) hosted=$($h.hosted)" -ForegroundColor Green
+    Write-Host "Health: ok=$($h.ok) yt-dlp=$($h.ytdlpVersion) potProvider=$($h.potProvider) cookies=$($h.cookies) hosted=$($h.hosted)" -ForegroundColor Green
   } catch { Write-Host "Health check failed: $($_.Exception.Message)" -ForegroundColor Red }
 }
 
@@ -104,7 +104,21 @@ switch ($Command) {
   }
   "cookies" {
     $file = Join-Path (Get-Location) "cookies.txt"
-    if (-not (Test-Path $file)) { throw "Export cookies.txt (Netscape format) from a browser logged into YouTube and put it in $(Get-Location)." }
+    if (-not (Test-Path $file)) { throw "No cookies.txt here. Run: npm run cookies:export (see DEPLOY.md)." }
+
+    # A session the browser has since rotated uploads fine but still gets the bot check, so test before uploading.
+    # yt-dlp rewrites the cookie jar it is given, hence the scratch copy.
+    $ytdlp = Join-Path (Get-Location) "bin\yt-dlp.exe"
+    if (Test-Path $ytdlp) {
+      Write-Host "Checking cookies.txt with yt-dlp..." -ForegroundColor Cyan
+      $copy = Join-Path $env:TEMP "grab-cookies-check.txt"
+      Copy-Item $file $copy -Force
+      $check = cmd /c "`"$ytdlp`" --simulate --no-playlist --cookies `"$copy`" https://www.youtube.com/watch?v=aqz-KE-bpKQ 2>&1"
+      Remove-Item $copy -ErrorAction SilentlyContinue
+      if ($check -match "cookies are no longer valid") {
+        throw "YouTube already rejects these cookies: the browser they came from has rotated the session. Re-export with: npm run cookies:export"
+      }
+    }
 
     Invoke-RenderApi "secret-files/cookies.txt" @{ content = [IO.File]::ReadAllText($file) }
     Write-Host "Uploaded cookies.txt. Redeploying so the server picks it up..." -ForegroundColor Cyan
@@ -121,9 +135,14 @@ switch ($Command) {
         -Headers $headers -Body '{"url":"https://www.youtube.com/watch?v=aqz-KE-bpKQ"}'
       Write-Host "YouTube OK: '$($info.title)' ($($info.qualities.Count) qualities)" -ForegroundColor Green
     } catch {
-      $msg = $_.ErrorDetails.Message
-      Write-Host "YouTube still blocking: $msg" -ForegroundColor Red
-      Write-Host "Re-export fresh cookies (private/incognito window, then close it) and run this again." -ForegroundColor Yellow
+      $status = try { [int]$_.Exception.Response.StatusCode } catch { 0 }
+      if ($status -eq 401) {
+        # Firebase sign-in guards the API, so this script can't do the end-to-end check itself.
+        Write-Host "Deployed. The API needs a signed-in user, so verify by fetching a video in the app: $WebUrl" -ForegroundColor Yellow
+      } else {
+        Write-Host "YouTube still blocking: $($_.ErrorDetails.Message)" -ForegroundColor Red
+        Write-Host "Re-export fresh cookies (npm run cookies:export) and run this again." -ForegroundColor Yellow
+      }
     }
   }
 }

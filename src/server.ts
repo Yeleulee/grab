@@ -267,6 +267,7 @@ app.get("/api/health", (_req, res) => {
     binaries: bins,
     ytdlpVersion,
     potProvider,
+    cookies: !!process.env.YTDLP_COOKIES_FILE,
     downloadDir: DOWNLOAD_DIR,
     hosted: HOSTED,
     auth: { firebase: !!firebase, password: !!APP_PASSWORD },
