@@ -54,6 +54,7 @@ The included `Dockerfile` builds a Linux image with Node, `yt-dlp` and `ffmpeg`.
 | `APP_PASSWORD` | Turns on HTTP Basic Auth (username `grab`, or set `APP_USER`) |
 | `YTDLP_COOKIES_FILE` | Path to a Netscape-format `cookies.txt` to get past bot checks |
 | `POT_PROVIDER_URL` | Where the PO token provider listens (set in the Dockerfile); `/api/health` reports `potProvider: true` once it's up |
+| `YTDLP_PLAYER_CLIENTS` | Comma-separated yt-dlp YouTube player clients to try (e.g. `tv,web_embedded`); default lets yt-dlp choose |
 
 ### Railway
 
@@ -95,9 +96,9 @@ container) plus its yt-dlp plugin. yt-dlp asks it for a proof-of-origin token on
 YouTube uses to tell browsers from bots. `GET /api/health` shows `"potProvider": true` when it's running.
 Nothing to configure.
 
-If YouTube still answers with the bot check, add cookies from a logged-in account on top:
+If YouTube still answers with the bot check (Render's IPs did, even with the provider), add cookies from a logged-in account on top:
 
-1. In a browser logged into a **throwaway** Google account, install an extension like *Get cookies.txt LOCALLY* and export `cookies.txt` for `youtube.com`.
+1. `npm run cookies:export -- brave` (or `chrome` / `edge`, browser closed first) — opens the browser on Google's sign-in page; sign in with a **throwaway** Google account and it writes `cookies.txt`. Or export manually with an extension like *Get cookies.txt LOCALLY*.
 2. Mount it into the container, e.g. `-v "$PWD/cookies.txt:/app/cookies.txt:ro"`.
 3. Set `YTDLP_COOKIES_FILE=/app/cookies.txt`.
 4. Cookies expire; re-export when downloads start failing again.

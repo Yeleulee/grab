@@ -239,11 +239,16 @@ Free-plan behaviour:
 - Bandwidth is limited on the free plan; HD videos use it up quickly.
 
 If YouTube answers "Sign in to confirm you're not a bot" even though the built-in PO token provider is running
-(`/api/health` → `potProvider: true`), add cookies on top:
+(`/api/health` → `potProvider: true`), add cookies on top. Render's IPs are blocked hard enough that this is
+required in practice; the PO token provider alone wasn't enough when tested:
 
-1. In a **private/incognito** window, log into a **throwaway** Google account on youtube.com.
-2. Export cookies for youtube.com in Netscape format (e.g. the *Get cookies.txt LOCALLY* extension), save as
-   `cookies.txt` in this folder (git-ignored), then close the private window so the session isn't rotated.
-3. `npm run render:cookies` — uploads it as a Render Secret File, redeploys, and checks YouTube works.
+1. Close Brave (or Chrome/Edge) completely, then `npm run cookies:export -- brave` (or `chrome` / `edge`). It
+   opens the browser on Google's sign-in page — sign in with a **throwaway** Google account (it may get banned)
+   — and writes `cookies.txt` (git-ignored) as soon as the session appears. This works around Chromium's
+   app-bound cookie encryption, which breaks yt-dlp's `--cookies-from-browser` on Windows.
+   Alternative: export manually with an extension like *Get cookies.txt LOCALLY* (Netscape format).
+2. `npm run render:cookies` — uploads it as a Render Secret File, redeploys, and checks YouTube works.
 
-Cookies expire after a while; repeat when the error comes back.
+Cookies expire after a while; repeat when the error comes back. `POST /api/selftest` (signed in; body
+`{ "url"?, "clients"? }`) returns yt-dlp's diagnostics — which PO token providers loaded and what YouTube answered
+— and `YTDLP_PLAYER_CLIENTS` (e.g. `tv,web_embedded`) overrides the player clients yt-dlp tries.
