@@ -9,8 +9,13 @@ See [PRD.md](./PRD.md) for the full product spec.
 
 ```powershell
 npm install
-npm run dev        # http://127.0.0.1:3000
+npm run local      # http://localhost:3000/app — just you, no sign-in (or double-click start.cmd)
+npm run dev        # http://localhost:3000 — auto-restarts on edits; uses Google sign-in if .env has Firebase keys
 ```
+
+`npm run local` passes `--no-auth`, so the app opens straight away even when `.env` contains Firebase keys.
+It still needs internet (downloads come from YouTube), but running from your home connection avoids the
+bot-block YouTube applies to cloud servers like Render. Use another port with `$env:PORT="3001"; npm run local`.
 
 | Page | Purpose |
 |---|---|
@@ -196,6 +201,20 @@ It *can* run in a container (Railway, Fly.io, Render, a VPS) using the included 
 
 The intended deployment is **local** (this machine) or packaged as a desktop app (Tauri/Electron).
 
+### Live site through this PC (recommended): `npm run tunnel`
+
+YouTube bot-blocks cloud servers (Render) even with cookies, which it rotates out within hours, but it trusts a
+home connection. `npm run tunnel` keeps the Vercel site and runs the download engine **on this PC**:
+
+1. starts the engine on `127.0.0.1:3100` with Google sign-in **on** (from `.env`; it refuses to run without it);
+2. opens a free Cloudflare quick tunnel (`bin/cloudflared.exe`, downloaded on first run, no account needed);
+3. sets the Vercel env `GRAB_API_URL` on project `grabb` to the tunnel URL and redeploys https://grabb-xi.vercel.app.
+
+Keep the window open; Ctrl+C stops it, and the site shows "Server unreachable" until you run it again (the tunnel
+URL changes every run, hence the ~30 s redeploy). Files are saved in `downloads/` on this PC. Quick tunnels don't
+pass Server-Sent Events, so the page falls back to polling `/api/jobs` every 2 s for progress.
+To go back to the Render engine: `npm run tunnel -- -Revert`.
+
 ### Deploy: Vercel (frontend) + Render (backend)
 
 Already set up:
@@ -246,11 +265,13 @@ If YouTube answers "Sign in to confirm you're not a bot" even though the built-i
 required in practice; the PO token provider alone wasn't enough when tested:
 
 1. `npm run cookies:export -- brave` (or `chrome` / `edge`; your normal browser can stay open). It launches a
-   **throwaway browser profile** on Google's sign-in page — sign in with a **throwaway** Google account (it may
-   get banned) — writes `cookies.txt` (git-ignored) as soon as the session appears, then closes and deletes that
-   profile. This matters: YouTube rotates account cookies in any browser that stays signed in, which silently
-   invalidates every exported copy (yt-dlp then reports *"cookies are no longer valid"*). So never sign in to that
-   account in a normal browser afterwards, and don't export from your everyday profile or a browser extension.
+   **throwaway browser profile** on Google's sign-in page — sign in to YouTube there — writes `cookies.txt`
+   (git-ignored) as soon as the session appears, then closes and deletes that profile. The profile matters more
+   than the account: YouTube rotates account cookies in any browser that stays signed in, which silently
+   invalidates every exported copy (yt-dlp then reports *"cookies are no longer valid"*). Because the profile is
+   gone, that session is never rotated, and your everyday browser session is a separate one, so keep using the
+   account normally. Don't export from your everyday profile or a browser extension. A spare Google account is
+   safer, since Google may restrict accounts it sees used this way.
    (The DevTools route also sidesteps Chromium's app-bound cookie encryption, which breaks yt-dlp's
    `--cookies-from-browser` on Windows.)
 2. `npm run render:cookies` — checks the file with yt-dlp first (refuses a rotated one), uploads it as a Render

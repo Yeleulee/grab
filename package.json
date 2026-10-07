@@ -6,6 +6,8 @@
     "scripts":  {
                     "dev":  "tsx watch src/server.ts",
                     "start":  "tsx src/server.ts",
+                    "local":  "tsx src/server.ts --no-auth",
+                    "tunnel":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/tunnel.ps1",
                     "build":  "tsc",
                     "typecheck":  "tsc --noEmit",
                     "test:formats":  "node scripts/test-formats.mjs",

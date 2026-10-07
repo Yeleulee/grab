@@ -149,7 +149,9 @@ if (APP_PASSWORD) {
 
 // Firebase Authentication (FIREBASE_* env vars). When configured, every /api route except
 // health/login needs a Firebase ID token; the password gate (if any) is still accepted for scripts/curl.
-const firebaseCfg = loadFirebaseConfig();
+// `--no-auth` (npm run local) skips sign-in for personal use on this machine, even if .env has Firebase keys.
+const NO_AUTH = process.argv.includes("--no-auth");
+const firebaseCfg = NO_AUTH ? null : loadFirebaseConfig();
 const firebase = firebaseCfg ? createFirebaseAuth(firebaseCfg.projectId) : null;
 const expectedBasic = APP_PASSWORD ? `Basic ${Buffer.from(`${APP_USER}:${APP_PASSWORD}`).toString("base64")}` : null;
 
@@ -268,7 +270,7 @@ app.get("/api/health", (_req, res) => {
     ytdlpVersion,
     potProvider,
     cookies: !!process.env.YTDLP_COOKIES_FILE,
-    downloadDir: DOWNLOAD_DIR,
+    downloadDir: HOSTED ? undefined : DOWNLOAD_DIR, // health is public; don't reveal server paths (e.g. a Windows username)
     hosted: HOSTED,
     auth: { firebase: !!firebase, password: !!APP_PASSWORD },
   });

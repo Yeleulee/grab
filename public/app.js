@@ -441,11 +441,27 @@ function upsert(job) {
   }
 }
 
+// Live progress normally streams over SSE. Some proxies (e.g. Cloudflare quick tunnels) don't pass SSE through,
+// so while a job is running and its stream has gone quiet or failed, poll the job list instead.
+const lastEvent = new Map();
+let pollTimer = null;
+function ensurePolling() {
+  if (pollTimer) return;
+  pollTimer = setInterval(async () => {
+    const running = [...jobs.values()].filter((j) => j.status === "running");
+    if (!running.length) { clearInterval(pollTimer); pollTimer = null; return; }
+    if (running.every((j) => Date.now() - (lastEvent.get(j.id) ?? 0) < 4000)) return; // SSE is delivering
+    try { (await api("/api/jobs")).forEach((j) => { if (jobs.has(j.id)) upsert(j); }); } catch {}
+  }, 2000);
+}
+
 function watch(id) {
+  ensurePolling();
   if (streams.has(id)) return;
   const es = new EventSource(authUrl(`/api/jobs/${id}/events`));
   streams.set(id, es);
   es.onmessage = (e) => {
+    lastEvent.set(id, Date.now());
     const job = JSON.parse(e.data);
     upsert(job);
     if (job.status !== "running") { es.close(); streams.delete(id); }

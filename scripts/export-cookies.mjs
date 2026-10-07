@@ -49,7 +49,7 @@ try {
   if (!cdp) throw new Error(`Could not connect to ${browser} on port ${port}.`);
   const ctx = cdp.contexts()[0];
 
-  console.log(`${browser} opened a throwaway profile on Google's sign-in page. Sign in there with a THROWAWAY account; waiting (up to 10 min)...`);
+  console.log(`${browser} opened a throwaway profile on Google's sign-in page. Sign in to YouTube there (a spare account is safer — Google may restrict accounts used this way); waiting (up to 10 min)...`);
   let cookies = [];
   const deadline = Date.now() + 10 * 60_000;
   while (Date.now() < deadline && !isLoggedIn(cookies)) {
@@ -71,7 +71,7 @@ try {
   }
   writeFileSync(new URL("../cookies.txt", import.meta.url), lines.join("\n") + "\n");
   console.log(`Wrote cookies.txt: ${cookies.length} youtube.com cookies; logged in: ${loggedIn ? "yes" : "NO — timed out waiting for sign-in"}`);
-  if (loggedIn) console.log("Never sign in to that account in a normal browser — YouTube would rotate the session and this file stops working. Next: npm run render:cookies");
+  if (loggedIn) console.log("Done — that profile is deleted, so this session can't be rotated; keep using the account normally elsewhere. Next: npm run render:cookies");
   process.exitCode = loggedIn ? 0 : 2;
 } finally {
   // Kill the browser before deleting its profile; the session must never be reopened, or it gets rotated.
