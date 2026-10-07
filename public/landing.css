@@ -86,20 +86,11 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .mobile-menu a.pill { margin-top: 8px; justify-content: center; border: 0; }
 
 /* ---------- hero ---------- */
-.hero { text-align: center; padding: clamp(48px, 9vw, 110px) var(--gutter) clamp(32px, 5vw, 56px); }
-.hero-meta { display: inline-flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); margin-bottom: 28px; flex-wrap: wrap; justify-content: center; }
+.hero { text-align: center; padding: clamp(32px, 5vw, 64px) var(--gutter) clamp(20px, 3vw, 32px); }
+.hero-meta { display: inline-flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); flex-wrap: wrap; justify-content: center; }
 .chip { padding: 4px 10px; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--ink); font-weight: 500; }
-.display {
-  font-size: clamp(44px, 11.5vw, 168px);
-  line-height: .9; font-weight: 500; letter-spacing: -0.045em; text-transform: uppercase;
-  margin: 0 auto; max-width: 14ch;
-}
-.display .line { display: block; overflow: hidden; }
-.display .line > span { display: inline-block; transform: translateY(110%); animation: rise .9s var(--ease) forwards; }
-.display .line:nth-child(2) > span { animation-delay: .08s; }
-@keyframes rise { to { transform: translateY(0); } }
-.hero-sub { max-width: 54ch; margin: 28px auto 0; font-size: clamp(16px, 1.6vw, 19px); color: var(--muted); line-height: 1.5; }
-.hero-actions { display: flex; gap: 12px; justify-content: center; margin-top: 32px; flex-wrap: wrap; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.hero-actions { display: flex; gap: 12px; justify-content: center; margin-top: clamp(24px, 3.5vw, 40px); flex-wrap: wrap; }
 
 /* ---------- product frame ---------- */
 .frame-wrap { padding: 0 var(--gutter); }
@@ -112,7 +103,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .frame-bar .dot { width: 10px; height: 10px; border-radius: 50%; background: #2c2c2e; }
 .frame-url { margin-left: 10px; font-family: var(--mono); font-size: 12px; color: #6e6e73; background: #1a1a1c; padding: 4px 12px; border-radius: 6px; }
 .hero-video { display: block; width: 100%; height: auto; border-radius: 12px 12px 0 0; background: #fff; }
-.frame-video { padding: 10px; }
+.frame-video { padding: 10px; max-width: min(1280px, calc((100svh - 330px) * 16 / 9 + 20px)); min-width: min(100%, 640px); }
 .frame-video .hero-video { border-radius: 12px; background: #e9e9e9; aspect-ratio: 16 / 9; }
 
 /* .mock styles are shared with scripts/hero-scene.html, which renders the hero video. */
@@ -243,7 +234,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   .nav-actions { display: none; }
   .nav-burger { display: grid; }
   .mobile-menu { inset: 64px 0 auto 0; }
-  .display { max-width: none; }
   .hero-actions .pill { width: 100%; justify-content: center; }
   .frame { padding: 10px 10px 0; border-radius: 14px; }
   .mock { padding: 14px; min-height: 0; }
@@ -261,6 +251,5 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
-  .display .line > span { transform: none; }
   .reveal { opacity: 1; transform: none; }
 }

@@ -33,7 +33,7 @@
   <link rel="icon" type="image/png" href="/logo.png" />
   <link rel="preconnect" href="https://rsms.me/" />
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
-  <link rel="stylesheet" href="/landing.css?v=2" />
+  <link rel="stylesheet" href="/landing.css?v=3" />
 </head>
 <body>
   <header class="nav">
@@ -64,24 +64,21 @@
         <span class="chip">Up to 4K</span>
         <span>MP4 · MP3 · M4A</span>
       </div>
-      <h1 class="display reveal">
-        <span class="line"><span>Save any</span></span>
-        <span class="line"><span>YouTube video.</span></span>
-      </h1>
-      <p class="hero-sub reveal">Pick the exact resolution and codec. Download to your own machine. No API keys, no ads, nothing uploaded anywhere.</p>
-      <div class="hero-actions reveal">
-        <a class="pill pill-dark pill-lg" href="/app">Start downloading <span class="arrow">→</span></a>
-        <a class="pill pill-outline pill-lg" href="#how">See how it works</a>
-      </div>
+      <!-- The video carries the headline visually; keep it in the markup for search engines and screen readers. -->
+      <h1 class="sr-only">Save any YouTube video.</h1>
     </section>
 
     <!-- Product frame: a motion-design piece built from the real app flow (scripts/hero-scene.html → render-hero.mjs). -->
-    <section class="frame-wrap reveal">
+    <section class="frame-wrap">
       <div class="frame frame-video">
         <video class="hero-video" autoplay muted loop playsinline preload="metadata" poster="/hero-poster.jpg" aria-label="Save any YouTube video — Grab fetches a link, picks the recommended quality and downloads it">
           <source src="/hero.webm" type="video/webm" />
           <source src="/hero.mp4" type="video/mp4" />
         </video>
+      </div>
+      <div class="hero-actions">
+        <a class="pill pill-dark pill-lg" href="/app">Start downloading <span class="arrow">→</span></a>
+        <a class="pill pill-outline pill-lg" href="#how">See how it works</a>
       </div>
     </section>
 
