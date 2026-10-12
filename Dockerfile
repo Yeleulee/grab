@@ -57,5 +57,4 @@ ENV POT_PROVIDER_URL=http://127.0.0.1:4416
 EXPOSE 3000
 
 # 1. Start the PO token provider in the background (localhost only; yt-dlp's bgutil plugin finds it at the default port).
-# 2. Render mounts Secret Files read-only at /etc/secrets; yt-dlp rewrites its cookie jar, so use a writable copy.
-CMD ["sh", "-c", "node /opt/bgutil/build/main.js & if [ -f /etc/secrets/cookies.txt ]; then cp /etc/secrets/cookies.txt /tmp/cookies.txt && export YTDLP_COOKIES_FILE=/tmp/cookies.txt; fi; exec node dist/server.js"]
+CMD ["sh", "-c", "node /opt/bgutil/build/main.js & if [ -f /etc/secrets/cookies.txt ]; then cp /etc/secrets/cookies.txt /tmp/cookies.txt && export YTDLP_COOKIES_FILE=/tmp/cookies.txt; fi; if [ -n \"$YTDLP_COOKIES_BASE64\" ]; then echo \"$YTDLP_COOKIES_BASE64\" | base64 -d > /tmp/cookies.txt && export YTDLP_COOKIES_FILE=/tmp/cookies.txt; fi; exec node dist/server.js"]

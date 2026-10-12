@@ -35,6 +35,18 @@ const HOSTED = !!process.env.RENDER || process.env.HOSTED === "1";
 mkdirSync(DOWNLOAD_DIR, { recursive: true });
 mkdirSync(DATA_DIR, { recursive: true });
 
+// If cookies are provided as base64 in environment variables (e.g. Railway), decode to /tmp/cookies.txt
+if (process.env.YTDLP_COOKIES_BASE64 && !process.env.YTDLP_COOKIES_FILE) {
+  try {
+    const cookiePath = path.join(process.platform === "win32" ? process.env.TEMP || "C:/temp" : "/tmp", "cookies.txt");
+    writeFileSync(cookiePath, Buffer.from(process.env.YTDLP_COOKIES_BASE64, "base64").toString("utf8"));
+    process.env.YTDLP_COOKIES_FILE = cookiePath;
+    console.log("Loaded YouTube cookies from YTDLP_COOKIES_BASE64 into", cookiePath);
+  } catch (e) {
+    console.warn("Failed to write YTDLP_COOKIES_BASE64 to disk:", e);
+  }
+}
+
 interface Job {
   id: string;
   uid?: string;

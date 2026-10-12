@@ -27,7 +27,8 @@
                     "railway:open":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/railway.ps1 open",
                     "railway:link":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/railway.ps1 link",
                     "railway:env":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/railway.ps1 env",
-                    "railway:domain":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/railway.ps1 domain"
+                    "railway:domain":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/railway.ps1 domain",
+                    "railway:cookies":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/railway.ps1 cookies"
                 },
     "keywords":  [
 
