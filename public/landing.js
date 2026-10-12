@@ -1,7 +1,11 @@
 // Landing page behaviour: reveal-on-scroll, mobile menu, animated product mock, auth-aware nav.
 
 const $ = (s) => document.querySelector(s);
-const API = String(window.GRAB_API || "").replace(/\/$/, "");
+let rawApi = String(window.GRAB_API || "").replace(/\/$/, "");
+if (!rawApi || rawApi.includes("trycloudflare.com")) {
+  rawApi = location.hostname.endsWith("vercel.app") ? "https://balanced-heart-production-d605.up.railway.app" : rawApi;
+}
+const API = rawApi;
 
 /* reveal on scroll */
 const io = new IntersectionObserver((entries) => {

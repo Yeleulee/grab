@@ -105,11 +105,19 @@ const ALLOWED_ORIGINS = new Set(
 );
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
+  const isAllowed =
+    !origin ||
+    ALLOWED_ORIGINS.size === 0 ||
+    ALLOWED_ORIGINS.has(origin) ||
+    origin.endsWith(".vercel.app") ||
+    origin.includes("localhost") ||
+    origin.includes("127.0.0.1");
+
+  if (origin && isAllowed) {
     res.set({
       "Access-Control-Allow-Origin": origin,
       "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Authorization, Content-Type",
+      "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept",
       "Access-Control-Max-Age": "600",
       Vary: "Origin",
     });

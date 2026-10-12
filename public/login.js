@@ -1,7 +1,11 @@
 import { initFirebaseAuth } from "/auth.js";
 
 const $ = (s) => document.querySelector(s);
-const API = String(window.GRAB_API || "").replace(/\/$/, "");
+let rawApi = String(window.GRAB_API || "").replace(/\/$/, "");
+if (!rawApi || rawApi.includes("trycloudflare.com")) {
+  rawApi = location.hostname.endsWith("vercel.app") ? "https://balanced-heart-production-d605.up.railway.app" : rawApi;
+}
+const API = rawApi;
 
 // Where to go after sign-in. Only same-origin paths are allowed (no open redirect).
 const params = new URLSearchParams(location.search);

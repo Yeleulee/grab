@@ -56,7 +56,11 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 
 /* ---------- API + auth ---------- */
 // Set by config.js: "" when this page is served by the backend itself, the Render URL when hosted on Vercel.
-const API = String(window.GRAB_API || "").replace(/\/$/, "");
+let rawApi = String(window.GRAB_API || "").replace(/\/$/, "");
+if (!rawApi || rawApi.includes("trycloudflare.com")) {
+  rawApi = location.hostname.endsWith("vercel.app") ? "https://balanced-heart-production-d605.up.railway.app" : rawApi;
+}
+const API = rawApi;
 const TOKEN_KEY = "grab-token";
 let token = localStorage.getItem(TOKEN_KEY) || "";
 
