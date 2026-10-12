@@ -4,7 +4,7 @@
 //     instead of proxying to Render (which sleeps on the free plan). The rewrite in vercel.json stays as a fallback.
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 
-const api = (process.env.GRAB_API_URL || "https://grab-dkfd.onrender.com").replace(/\/$/, "");
+const api = (process.env.GRAB_API_URL || "https://balanced-heart-production-d605.up.railway.app").replace(/\/$/, "");
 writeFileSync(
   new URL("../public/config.js", import.meta.url),
   `// Generated at build time by scripts/vercel-config.mjs\nwindow.GRAB_API = ${JSON.stringify(api)};\n`,

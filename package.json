@@ -20,7 +20,14 @@
                     "hero:render":  "node scripts/render-hero.mjs",
                     "render:env":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 env",
                     "vercel:deploy":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/render.ps1 vercel",
-                    "diag:popup":  "node scripts/diag-popup.mjs"
+                    "diag:popup":  "node scripts/diag-popup.mjs",
+                    "railway:deploy":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/railway.ps1 deploy",
+                    "railway:status":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/railway.ps1 status",
+                    "railway:logs":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/railway.ps1 logs",
+                    "railway:open":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/railway.ps1 open",
+                    "railway:link":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/railway.ps1 link",
+                    "railway:env":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/railway.ps1 env",
+                    "railway:domain":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/railway.ps1 domain"
                 },
     "keywords":  [
 
