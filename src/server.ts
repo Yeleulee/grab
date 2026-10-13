@@ -9,6 +9,7 @@ import {
   checkBinaries,
   getInfo,
   getVersion,
+  isBotError,
   normalizeYouTubeUrl,
   selfTest,
   startDownload,
@@ -18,6 +19,11 @@ import {
   type CodecPref,
   type Progress,
 } from "./ytdlp.js";
+import {
+  cobaltDownload,
+  getFallbackVideoInfo,
+  checkCobaltHealth,
+} from "./cobalt.js";
 import { createFirebaseAuth, loadFirebaseConfig } from "./auth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -64,13 +70,15 @@ interface Job {
   createdAt: number;
   finishedAt?: number;
   handle?: DownloadHandle;
+  abortController?: AbortController;
+  engine?: "yt-dlp" | "cobalt";
   listeners: Set<Response>;
 }
 
 const jobs = new Map<string, Job>();
 
 function publicJob(j: Job) {
-  const { handle, listeners, ...rest } = j;
+  const { handle, listeners, abortController, ...rest } = j;
   const fileExists = !!j.filePath && existsSync(j.filePath);
   return { ...rest, fileName: j.filePath ? path.basename(j.filePath) : undefined, fileExists };
 }
@@ -91,7 +99,7 @@ function saveHistory() {
   if (saveTimer) return;
   saveTimer = setTimeout(() => {
     saveTimer = null;
-    const list = [...jobs.values()].map(({ handle, listeners, ...rest }) => rest);
+    const list = [...jobs.values()].map(({ handle, listeners, abortController, ...rest }) => rest);
     try { writeFileSync(HISTORY_FILE, JSON.stringify(list, null, 2)); } catch {}
   }, 300);
 }
@@ -280,15 +288,17 @@ function refreshPotProvider() {
     .finally(() => (potPending = false));
 }
 
-app.get("/api/health", (_req, res) => {
+app.get("/api/health", async (_req, res) => {
   const bins = checkBinaries();
   if (!ytdlpVersion) refreshVersion();
   if (potProvider === false) refreshPotProvider();
+  const cobaltHealth = await checkCobaltHealth();
   res.json({
-    ok: bins.ytdlp && bins.ffmpeg,
+    ok: (bins.ytdlp && bins.ffmpeg) || cobaltHealth.ok,
     binaries: bins,
     ytdlpVersion,
     potProvider,
+    cobalt: cobaltHealth,
     cookies: !!process.env.YTDLP_COOKIES_FILE,
     downloadDir: HOSTED ? undefined : DOWNLOAD_DIR, // health is public; don't reveal server paths (e.g. a Windows username)
     hosted: HOSTED,
@@ -300,8 +310,22 @@ app.post("/api/info", async (req, res) => {
   const url = normalizeYouTubeUrl(String(req.body?.url ?? ""));
   if (!url) return res.status(400).json({ error: "Please enter a valid YouTube URL." });
   try {
+    if (process.env.COBALT_PRIMARY === "1") {
+      try {
+        return res.json(await getFallbackVideoInfo(url));
+      } catch {}
+    }
     res.json(await getInfo(url));
   } catch (e: any) {
+    if (isBotError(e.message) || /bot|blocking this server/i.test(e.message)) {
+      console.warn(`[info] yt-dlp blocked by bot detection. Using oEmbed + Cobalt fallback info for ${url}`);
+      try {
+        const fallbackInfo = await getFallbackVideoInfo(url);
+        return res.json(fallbackInfo);
+      } catch (fbErr: any) {
+        console.error(`[info] Fallback info also failed:`, fbErr);
+      }
+    }
     res.status(422).json({ error: e.message });
   }
 });
@@ -354,7 +378,50 @@ app.post("/api/download", (req, res) => {
     broadcast(job);
   };
 
-  // YouTube intermittently returns 403 on fresh stream URLs; one automatic retry fixes most cases.
+  const downloadWithCobalt = async (reason: string) => {
+    if (job.status === "cancelled") return;
+    job.engine = "cobalt";
+    console.log(`[download] Switching to Cobalt engine for job ${job.id} (${reason})`);
+    job.progress = { percent: 0, stage: "downloading" };
+    broadcast(job);
+
+    const ac = new AbortController();
+    job.abortController = ac;
+
+    try {
+      const filePath = await cobaltDownload({
+        url,
+        kind,
+        height,
+        codec,
+        outputDir: DOWNLOAD_DIR,
+        title: job.title || undefined,
+        signal: ac.signal,
+        onProgress: (percent) => {
+          job.progress = { percent, stage: "downloading" };
+          broadcast(job);
+        },
+      });
+
+      if ((job.status as string) === "cancelled" || ac.signal.aborted) return finish("cancelled");
+      let fileSize: number | undefined;
+      try { fileSize = statSync(filePath).size; } catch {}
+      finish("done", { filePath, fileSize, progress: { percent: 100, stage: "done" } });
+    } catch (cobaltErr: any) {
+      if ((job.status as string) === "cancelled" || ac.signal.aborted) return finish("cancelled");
+      console.error(`[download] Cobalt engine failed:`, cobaltErr.message);
+      finish("error", { error: `${reason}. Cobalt fallback: ${cobaltErr.message}` });
+    }
+  };
+
+  if (process.env.COBALT_PRIMARY === "1") {
+    downloadWithCobalt("COBALT_PRIMARY is enabled");
+    return res.status(202).json(publicJob(job));
+  }
+
+  // YouTube intermittently returns 403 on fresh stream URLs, and datacenter IPs trigger bot detection.
+  // Retry: for 403 retry yt-dlp; for bot-detection errors switch automatically to Cobalt fallback.
+  const MAX_RETRIES = 2;
   const launch = async (attempt: number) => {
     let handle: DownloadHandle;
     try {
@@ -363,10 +430,19 @@ app.post("/api/download", (req, res) => {
         broadcast(job);
       });
     } catch (e: any) {
+      if (job.status === "cancelled") return;
+      if (isBotError(e.message) || /bot|blocking this server/i.test(e.message)) {
+        return downloadWithCobalt(`yt-dlp blocked by YouTube bot detection: ${e.message}`);
+      }
+      if (attempt < MAX_RETRIES && /403/.test(e.message)) {
+        console.warn(`[download] 403 during format resolution (attempt ${attempt + 1}/${MAX_RETRIES}), retrying in 2s…`);
+        await new Promise((r) => setTimeout(r, 2000));
+        return launch(attempt + 1);
+      }
       return finish("error", { error: e.message });
     }
     job.handle = handle;
-    if (job.status === "cancelled") return handle.cancel(); // cancelled while formats were resolving
+    if (job.status === "cancelled") return handle.cancel();
 
     handle.promise
       .then((filePath) => {
@@ -374,13 +450,18 @@ app.post("/api/download", (req, res) => {
         try { fileSize = statSync(filePath).size; } catch {}
         finish("done", { filePath, fileSize, progress: { percent: 100, stage: "done" } });
       })
-      .catch((e: Error) => {
-        if (job.status === "running" && attempt === 0 && /403/.test(e.message)) {
+      .catch(async (e: Error) => {
+        if (job.status === "cancelled") return finish("cancelled");
+        if (isBotError(e.message) || /bot|blocking this server/i.test(e.message)) {
+          return downloadWithCobalt(`yt-dlp download blocked by bot detection: ${e.message}`);
+        }
+        if (attempt < MAX_RETRIES && /403/.test(e.message)) {
+          console.warn(`[download] 403 stream error (attempt ${attempt + 1}/${MAX_RETRIES}): ${e.message.slice(0, 120)}, retrying in 2s…`);
           job.progress = { percent: 0, stage: "downloading" };
           broadcast(job);
-          return launch(1);
+          await new Promise((r) => setTimeout(r, 2000));
+          return launch(attempt + 1);
         }
-        if (job.status === "cancelled") return finish("cancelled");
         finish("error", { error: e.message });
       });
   };
@@ -450,6 +531,7 @@ app.post("/api/jobs/:id/cancel", (req, res) => {
   if (job.status !== "running") return res.json(publicJob(job));
   job.status = "cancelled";
   job.handle?.cancel();
+  job.abortController?.abort();
   res.json(publicJob(job));
 });
 

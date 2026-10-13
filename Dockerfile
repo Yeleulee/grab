@@ -4,7 +4,7 @@
 #   1. A PO token provider (bgutil) that solves YouTube's BotGuard challenge locally — automatic, no account needed.
 #   2. Optional cookies from a logged-in account (YTDLP_COOKIES_FILE / Render Secret File) for when 1 isn't enough.
 
-ARG POT_VERSION=2.0.1
+ARG POT_VERSION=2.0.2
 
 # --- Stage 1: build the PO token provider server (https://github.com/Brainicism/bgutil-ytdlp-pot-provider) ---
 FROM node:24-slim AS pot
@@ -57,4 +57,6 @@ ENV POT_PROVIDER_URL=http://127.0.0.1:4416
 EXPOSE 3000
 
 # 1. Start the PO token provider in the background (localhost only; yt-dlp's bgutil plugin finds it at the default port).
-CMD ["sh", "-c", "node /opt/bgutil/build/main.js & if [ -f /etc/secrets/cookies.txt ]; then cp /etc/secrets/cookies.txt /tmp/cookies.txt && export YTDLP_COOKIES_FILE=/tmp/cookies.txt; fi; if [ -n \"$YTDLP_COOKIES_BASE64\" ]; then echo \"$YTDLP_COOKIES_BASE64\" | base64 -d > /tmp/cookies.txt && export YTDLP_COOKIES_FILE=/tmp/cookies.txt; fi; exec node dist/server.js"]
+# 2. Auto-update yt-dlp to get the latest bot-detection bypasses on every deploy/restart.
+# 3. Wait briefly for the PO token provider to initialise before starting the app.
+CMD ["sh", "-c", "node /opt/bgutil/build/main.js & sleep 3; bin/yt-dlp -U 2>&1 | tail -1 || true; if [ -f /etc/secrets/cookies.txt ]; then cp /etc/secrets/cookies.txt /tmp/cookies.txt && export YTDLP_COOKIES_FILE=/tmp/cookies.txt; fi; if [ -n \"$YTDLP_COOKIES_BASE64\" ]; then echo \"$YTDLP_COOKIES_BASE64\" | base64 -d > /tmp/cookies.txt && export YTDLP_COOKIES_FILE=/tmp/cookies.txt; fi; exec node dist/server.js"]

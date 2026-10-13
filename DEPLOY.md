@@ -55,6 +55,9 @@ The included `Dockerfile` builds a Linux image with Node, `yt-dlp` and `ffmpeg`.
 | `YTDLP_COOKIES_FILE` | Path to a Netscape-format `cookies.txt` to get past bot checks |
 | `POT_PROVIDER_URL` | Where the PO token provider listens (set in the Dockerfile); `/api/health` reports `potProvider: true` once it's up |
 | `YTDLP_PLAYER_CLIENTS` | Comma-separated yt-dlp YouTube player clients to try (e.g. `tv,web_embedded`); default lets yt-dlp choose |
+| `COBALT_API_URL` | Optional custom Cobalt instance (e.g. `https://cobalt.up.railway.app`); bypasses bot checks completely |
+| `COBALT_API_KEY` | Optional API key for your private Cobalt instance (if configured) |
+| `COBALT_PRIMARY` | Set to `1` to use Cobalt as primary engine instead of yt-dlp fallback |
 
 ### Railway
 

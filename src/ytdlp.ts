@@ -4,6 +4,57 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// ---------------------------------------------------------------------------
+//  Rate-limiter: space out YouTube requests to reduce bot-detection triggers.
+// ---------------------------------------------------------------------------
+let lastRequestTime = 0;
+const MIN_REQUEST_GAP_MS = Number(process.env.YTDLP_REQUEST_GAP_MS ?? 2000);
+
+async function rateLimit() {
+  const now = Date.now();
+  const wait = MIN_REQUEST_GAP_MS - (now - lastRequestTime);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastRequestTime = Date.now();
+}
+
+// ---------------------------------------------------------------------------
+//  Client rotation: when YouTube blocks one player client, try the next chain.
+//  Order is tuned for datacenter IPs — android is least scrutinised.
+// ---------------------------------------------------------------------------
+const CLIENT_CHAINS = [
+  "android",                        // least scrutinised; works from datacenters
+  "android,web_embedded",           // fallback combo
+  "tv,web_embedded",                // old but sometimes still works
+  "ios,android",                    // iOS client as primary
+  "default,all",                    // let yt-dlp try everything
+];
+
+/** Returns the index of the next client chain to try after `current`. -1 = exhausted. */
+function nextClientChainIndex(current: string | undefined): number {
+  if (!current) return 0;
+  const idx = CLIENT_CHAINS.indexOf(current);
+  return idx >= 0 && idx < CLIENT_CHAINS.length - 1 ? idx + 1 : -1;
+}
+
+// ---------------------------------------------------------------------------
+//  PO token provider readiness gate (only in Docker / hosted environments).
+// ---------------------------------------------------------------------------
+const POT_PROVIDER_URL = process.env.POT_PROVIDER_URL;
+let potProviderReady = !POT_PROVIDER_URL; // assume ready if not configured (local dev)
+
+async function waitForPotProvider(maxWaitMs = 30_000): Promise<void> {
+  if (!POT_PROVIDER_URL || potProviderReady) return;
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    try {
+      const r = await fetch(`${POT_PROVIDER_URL}/ping`, { signal: AbortSignal.timeout(2000) });
+      if (r.ok) { potProviderReady = true; return; }
+    } catch {}
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  console.warn("[ytdlp] PO token provider not ready after", maxWaitMs, "ms — proceeding without it");
+}
 export const BIN_DIR = path.resolve(__dirname, "..", "bin");
 const EXE = process.platform === "win32" ? ".exe" : "";
 export const YTDLP_PATH = path.join(BIN_DIR, `yt-dlp${EXE}`);
@@ -23,11 +74,17 @@ const YTDLP_ENV = { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" }
  * Flags shared by every yt-dlp invocation. Datacenter IPs get YouTube's "Sign in to confirm you're not a bot"
  * on the default clients (visionos,web); YTDLP_PLAYER_CLIENTS picks alternative players (e.g. "tv,web_embedded")
  * and YTDLP_COOKIES_FILE adds a logged-in session. Both are optional; local use needs neither.
+ *
+ * Default: "android" — the Android client is currently the least blocked from datacenter IPs.
  */
-export function commonArgs(clients = process.env.YTDLP_PLAYER_CLIENTS): string[] {
-  const args: string[] = [];
+export function commonArgs(clients?: string): string[] {
+  const resolved = clients ?? process.env.YTDLP_PLAYER_CLIENTS ?? (POT_PROVIDER_URL ? "android" : undefined);
+  const args: string[] = [
+    // Sleep between requests inside a single yt-dlp invocation to avoid rapid-fire triggers.
+    "--sleep-requests", String(Number(process.env.YTDLP_SLEEP_REQUESTS ?? "1")),
+  ];
   if (process.env.YTDLP_COOKIES_FILE) args.push("--cookies", process.env.YTDLP_COOKIES_FILE);
-  if (clients) args.push("--extractor-args", `youtube:player_client=${clients}`);
+  if (resolved) args.push("--extractor-args", `youtube:player_client=${resolved}`);
   return args;
 }
 
@@ -141,13 +198,68 @@ export function pickAudioFormat(formats: VideoFormat[]): VideoFormat | null {
 const formatCache = new Map<string, { at: number; formats: VideoFormat[]; duration: number }>();
 const FORMAT_TTL = 10 * 60_000;
 
+/**
+ * Detect whether a yt-dlp error message indicates YouTube's bot detection.
+ * This is used for automatic client-rotation retries.
+ */
+export function isBotError(message: string): boolean {
+  const s = message.toLowerCase();
+  return s.includes("sign in to confirm you're not a bot") || s.includes("sign in to confirm you\u2019re not a bot");
+}
+
+/**
+ * Fetches raw video metadata with automatic retry: if YouTube's bot detection fires,
+ * it rotates through alternative player client chains before giving up.
+ */
 async function fetchRaw(url: string) {
-  // Warnings stay on here: "cookies are no longer valid" is the one line that explains a bot check on a hosted server.
-  const args = ["--encoding", "utf-8", "-J", "--no-playlist", ...commonArgs()];
-  const json = await run([...args, url]);
-  const raw = JSON.parse(json);
-  formatCache.set(raw.id, { at: Date.now(), formats: raw.formats ?? [], duration: raw.duration ?? 0 });
-  return raw;
+  await waitForPotProvider();
+  await rateLimit();
+
+  // Try the default (configured) client first, then rotate through alternatives on bot blocks.
+  const defaultClients = process.env.YTDLP_PLAYER_CLIENTS ?? (POT_PROVIDER_URL ? "android" : undefined);
+  const tried = new Set<string>();
+  let lastError: Error | null = null;
+
+  // Attempt 1: default/configured client
+  try {
+    const args = ["--encoding", "utf-8", "-J", "--no-playlist", ...commonArgs(defaultClients)];
+    const json = await run([...args, url]);
+    const raw = JSON.parse(json);
+    formatCache.set(raw.id, { at: Date.now(), formats: raw.formats ?? [], duration: raw.duration ?? 0 });
+    return raw;
+  } catch (e: any) {
+    lastError = e;
+    if (defaultClients) tried.add(defaultClients);
+    if (!isBotError(e.message)) throw e;
+    console.warn("[ytdlp] Bot detection hit with clients:", defaultClients ?? "(default)", "— rotating…");
+  }
+
+  // Attempt 2+: rotate through CLIENT_CHAINS
+  for (const chain of CLIENT_CHAINS) {
+    if (tried.has(chain)) continue;
+    tried.add(chain);
+    console.log(`[ytdlp] Retrying with player_client=${chain}`);
+    await rateLimit();
+    try {
+      const args = ["--encoding", "utf-8", "-J", "--no-playlist", ...commonArgs(chain)];
+      const json = await run([...args, url], 90_000); // give retries extra time
+      const raw = JSON.parse(json);
+      formatCache.set(raw.id, { at: Date.now(), formats: raw.formats ?? [], duration: raw.duration ?? 0 });
+      // This chain worked — remember it for future requests in this process.
+      if (chain !== defaultClients) {
+        process.env.YTDLP_PLAYER_CLIENTS = chain;
+        console.log(`[ytdlp] Switching default player_client to "${chain}" for this session.`);
+      }
+      return raw;
+    } catch (e: any) {
+      lastError = e;
+      if (!isBotError(e.message)) throw e;
+      console.warn(`[ytdlp] Bot detection persists with clients: ${chain}`);
+    }
+  }
+
+  // All chains exhausted
+  throw lastError ?? new Error("All player client chains exhausted — YouTube is blocking this server.");
 }
 
 async function getFormats(url: string): Promise<{ formats: VideoFormat[]; duration: number }> {
@@ -256,7 +368,7 @@ export function humanizeError(stderr: string): string {
     // The warning alone is not the failure (a rotated jar still works from a home IP), so only explain it here.
     if (COOKIES_ROTATED_RE.test(s))
       return "The server's YouTube cookies were invalidated — the browser they were exported from rotated that session. Export a fresh set (npm run cookies:export) and upload it (npm run render:cookies).";
-    return "YouTube is asking this server to prove it isn't a bot. Try again in a minute; if it keeps happening, the server needs fresh YouTube cookies (see DEPLOY.md).";
+    return "YouTube's bot detection blocked all player clients. Try again in a few minutes (it's often temporary). If it persists, the server needs fresh YouTube cookies (see DEPLOY.md) or the PO token provider may be down — check /api/health.";
   }
   if (s.includes("private video")) return "This video is private.";
   if (s.includes("video unavailable")) return "This video is unavailable.";
@@ -332,6 +444,9 @@ export async function startDownload(
   opts: DownloadOptions,
   onProgress: (p: Progress) => void
 ): Promise<DownloadHandle> {
+  await waitForPotProvider();
+  await rateLimit();
+
   const args = [
     "--encoding", "utf-8", // otherwise yt-dlp silently drops non-ASCII chars from printed paths on Windows
     "--no-playlist",
@@ -343,6 +458,8 @@ export async function startDownload(
     "--retries", "10",
     "--fragment-retries", "10",
     "--retry-sleep", "http:2",
+    "--sleep-interval", String(Number(process.env.YTDLP_SLEEP_INTERVAL ?? "2")),
+    "--max-sleep-interval", String(Number(process.env.YTDLP_MAX_SLEEP_INTERVAL ?? "8")),
     "--ffmpeg-location",
     BIN_DIR,
     "--windows-filenames",
